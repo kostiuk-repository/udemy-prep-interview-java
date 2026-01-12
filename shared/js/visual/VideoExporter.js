@@ -54,6 +54,18 @@ export class VideoExporter {
         canvas.width = this.width;
         canvas.height = this.height;
 
+        // Attach canvas to DOM (hidden) to ensure captureStream works reliably
+        // Some browsers pause processing on detached canvases
+        canvas.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1000;
+        `;
+        document.body.appendChild(canvas);
+
         // Context for rendering
         const ctx = canvas.getContext('2d');
 
@@ -92,6 +104,10 @@ export class VideoExporter {
         const recordingPromise = new Promise(resolve => {
             recorder.onstop = () => {
                 const blob = new Blob(chunks, { type: mimeType });
+                // Cleanup canvas from DOM
+                if (canvas.parentNode) {
+                    canvas.parentNode.removeChild(canvas);
+                }
                 resolve(blob);
             };
         });
@@ -99,6 +115,9 @@ export class VideoExporter {
         // Start recording
         recorder.start();
         this.isRecording = true;
+
+        // Give MediaRecorder time to initialize
+        await new Promise(r => setTimeout(r, 100));
 
         try {
             const totalFrames = this._calculateTotalFrames(scene, holdFrames);
