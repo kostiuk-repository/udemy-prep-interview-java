@@ -600,19 +600,22 @@ body {
 
 /* Visual-Script Sync Highlight */
 .sync-highlight {
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.3), rgba(16, 185, 129, 0.3));
-    border-left: 3px solid var(--success);
+    /* Base state: no visible styling */
+    background: transparent;
+    border-left: none;
     padding: var(--spacing-xs) var(--spacing-sm);
     margin: var(--spacing-xs) 0;
     display: inline-block;
     border-radius: var(--radius-sm);
-    animation: syncPulse 1.5s ease-in-out infinite;
     transition: all var(--transition-normal);
 }
 
+/* Only the active step gets the highlight */
 .sync-highlight.active {
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.5), rgba(16, 185, 129, 0.5));
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.4), rgba(16, 185, 129, 0.4));
+    border-left: 3px solid var(--success);
     box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    animation: syncPulse 1.5s ease-in-out infinite;
 }
 
 @keyframes syncPulse {
