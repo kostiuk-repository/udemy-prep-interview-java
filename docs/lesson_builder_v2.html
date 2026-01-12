@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson Builder - Video 01</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --secondary: #f97316;
+            --danger: #ef4444;
+            --success: #10b981;
+            --bg-dark: #1e293b;
+            --bg-section: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border: #475569;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Top Navigation Bar */
+        .top-nav {
+            position: sticky;
+            top: 0;
+            background: var(--bg-section);
+            padding: 1rem 2rem;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .burger-menu {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+        }
+
+        .burger-menu:hover {
+            background: #1d4ed8;
+        }
+
+        .burger-line {
+            width: 24px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .burger-menu.open .burger-line:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+
+        .burger-menu.open .burger-line:nth-child(2) {
+            opacity: 0;
+        }
+
+        .burger-menu.open .burger-line:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+
+        .nav-right {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .export-dropdown {
+            position: relative;
+        }
+
+        .export-btn {
+            padding: 0.75rem 1.5rem;
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .export-btn:hover {
+            background: #059669;
+        }
+
+        .export-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            min-width: 200px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+            display: none;
+            overflow: hidden;
+        }
+
+        .export-menu.show {
+            display: block;
+        }
+
+        .export-menu button {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: transparent;
+            color: var(--text-primary);
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .export-menu button:hover {
+            background: var(--bg-section);
+        }
+
+        /* Sidebar Timeline */
+        .timeline-sidebar {
+            position: fixed;
+            top: 0;
+            left: -400px;
+            width: 400px;
+            height: 100vh;
+            background: var(--bg-section);
+            box-shadow: 4px 0 12px rgba(0, 0, 0, 0.5);
+            transition: left 0.3s;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .timeline-sidebar.open {
+            left: 0;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            background: var(--bg-dark);
+            border-bottom: 2px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .sidebar-header h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-progress {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .timeline-item {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .timeline-item:hover {
+            background: rgba(37, 99, 235, 0.1);
+        }
+
+        .timeline-item.completed {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .timeline-checkbox {
+            margin-top: 0.25rem;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--success);
+        }
+
+        .timeline-content {
+            flex: 1;
+        }
+
+        .timeline-time {
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-desc {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Overlay */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+            display: none;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .lesson-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 3rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .lesson-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .lesson-header .meta {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+        }
+
+        .section {
+            background: var(--bg-section);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .timing {
+            background: var(--primary);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .section-type {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--secondary);
+            border-radius: 4px;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .section-description {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border-left: 3px solid var(--secondary);
+        }
+
+        .visual-content {
+            margin: 1.5rem 0;
+        }
+
+        .visual-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .visual-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .animation-container {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            min-height: 300px;
+            position: relative;
+        }
+
+        /* Arrow Navigation for Steps */
+        .step-navigation {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .step-nav-btn {
+            width: 50px;
+            height: 50px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .step-nav-btn:hover:not(:disabled) {
+            background: #1d4ed8;
+            transform: scale(1.1);
+        }
+
+        .step-nav-btn:disabled {
+            background: var(--border);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .step-indicator {
+            background: var(--bg-dark);
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: bold;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .audio-section {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+        }
+
+        .audio-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .audio-header:hover h3 {
+            color: var(--primary);
+        }
+
+        .audio-header h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.3s;
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s;
+            font-size: 1.2rem;
+        }
+
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .audio-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .script-content {
+            max-height: 500px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .script-content.collapsed {
+            max-height: 0;
+        }
+
+        .script-text {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            margin-bottom: 1rem;
+        }
+
+        .word-count {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .audio-player-container {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .audio-player {
+            width: 100%;
+            margin-bottom: 0.75rem;
+        }
+
+        audio::-webkit-media-controls-panel {
+            background: var(--bg-dark);
+        }
+
+        .audio-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .code-block {
+            background: #0f172a;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .code-block code {
+            color: #94a3b8;
+        }
+
+        .keyword { color: #f472b6; }
+        .string { color: #a78bfa; }
+        .comment { color: #64748b; }
+        .function { color: #60a5fa; }
+
+        .production-notes {
+            background: rgba(249, 115, 22, 0.1);
+            border: 2px dashed var(--secondary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+        }
+
+        .production-notes h4 {
+            color: var(--secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .production-notes ul {
+            list-style-position: inside;
+            color: var(--text-secondary);
+        }
+
+        /* Animation specific styles */
+        .pie-chart {
+            width: 300px;
+            height: 300px;
+            margin: 2rem auto;
+        }
+
+        .killer-card {
+            background: linear-gradient(135deg, #1e293b, #334155);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1rem 0;
+            border-left: 4px solid var(--danger);
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: all 0.5s ease;
+        }
+
+        .killer-card.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .killer-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--danger);
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .lesson-header h1 {
+                font-size: 1.75rem;
+            }
+
+            .timeline-sidebar {
+                width: 100%;
+                left: -100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <div class="top-nav">
+        <div class="nav-left">
+            <button class="burger-menu" onclick="toggleSidebar()">
+                <div class="burger-line"></div>
+                <div class="burger-line"></div>
+                <div class="burger-line"></div>
+            </button>
+            <div class="nav-title">Video 01: Why You Keep Failing Interviews</div>
+        </div>
+        <div class="nav-right">
+            <div class="export-dropdown">
+                <button class="export-btn" onclick="toggleExportMenu()">
+                    📦 Export
+                    <span style="font-size: 0.75rem;">▼</span>
+                </button>
+                <div class="export-menu" id="exportMenu">
+                    <button onclick="exportFullLesson()">⬇ Full Lesson Package</button>
+                    <button onclick="exportVoiceScripts()">🎙️ All Voice Scripts</button>
+                    <button onclick="exportProduction()">📹 Production Guide</button>
+                    <button onclick="exportAssets()">🎨 All Assets (ZIP)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <!-- Timeline Sidebar -->
+    <div class="timeline-sidebar" id="timelineSidebar">
+        <div class="sidebar-header">
+            <h3>📋 Timeline</h3>
+            <div class="sidebar-progress" id="progressIndicator">Completed: 0/8 sections</div>
+        </div>
+        
+        <div class="timeline-item" data-section="0">
+            <input type="checkbox" class="timeline-checkbox" onchange="updateProgress()" onclick="event.stopPropagation()">
+            <div class="timeline-content" onclick="goToSection(0)">
+                <div class="timeline-time">00:00 - 00:30</div>
+                <div class="timeline-title">The Hook</div>
+                <div class="timeline-desc">Capture attention with relatable pain point. Establish credibility.</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" data-section="1">
+            <input type="checkbox" class="timeline-checkbox" onchange="updateProgress()" onclick="event.stopPropagation()">
+            <div class="timeline-content" onclick="goToSection(1)">
+                <div class="timeline-time">00:30 - 01:30</div>
+                <div class="timeline-title">The Problem</div>
+                <div class="timeline-desc">Define the gap: LeetCode (30%) vs Real Skills (70%)</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" data-section="2">
+            <input type="checkbox" class="timeline-checkbox" onchange="updateProgress()" onclick="event.stopPropagation()">
+            <div class="timeline-content" onclick="goToSection(2)">
+                <div class="timeline-time">01:30 - 02:10</div>
+                <div class="timeline-title">Killer #1: Business Logic</div>
+                <div class="timeline-desc">Money transfer example showing implementation gap</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" data-section="3">
+            <input type="checkbox" class="timeline-checkbox" onchange="updateProgress()" onclick="event.stopPropagation()">
+            <div class="timeline-content" onclick="goToSection(3)">
+                <div class="timeline-time">02:10 - 02:50</div>
+                <div class="timeline-title">Killer #2: Deep Theory</div>
+                <div class="timeline-desc">Explaining concepts clearly under pressure</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" data-section="4">
+            <input type="checkbox" class="timeline-checkbox" onchange="updateProgress()" onclick="event.stopPropagation()">
+            <div class="timeline-content" onclick="goToSection(4)">
+                <div class="timeline-time">02:50 - 03:30</div>
+                <div class="timeline-title">Killer #3: System Design</div>
+                <div class="timeline-desc">Going beyond boxes and arrows</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" data-section="5">
+            <input type="checkbox" class="timeline-checkbox" onchange="updateProgress()" onclick="event.stopPropagation()">
+            <div class="timeline-content" onclick="goToSection(5)">
+                <div class="timeline-time">03:30 - 05:00</div>
+                <div class="timeline-title">Solution Preview</div>
+                <div class="timeline-desc">Introduce SPIDER framework and 6 tasks</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" data-section="6">
+            <input type="checkbox" class="timeline-checkbox" onchange="updateProgress()" onclick="event.stopPropagation()">
+            <div class="timeline-content" onclick="goToSection(6)">
+                <div class="timeline-time">05:00 - 06:00</div>
+                <div class="timeline-title">Social Proof</div>
+                <div class="timeline-desc">Why this course vs others + credibility</div>
+            </div>
+        </div>
+
+        <div class="timeline-item" data-section="7">
+            <input type="checkbox" class="timeline-checkbox" onchange="updateProgress()" onclick="event.stopPropagation()">
+            <div class="timeline-content" onclick="goToSection(7)">
+                <div class="timeline-time">06:00 - 07:00</div>
+                <div class="timeline-title">Call to Action</div>
+                <div class="timeline-desc">Clear next steps + course structure</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Lesson Header -->
+        <div class="lesson-header">
+            <h1>Why You Keep Failing Interviews</h1>
+            <div class="meta">Duration: 7:00 | Type: Introduction & Problem Awareness</div>
+        </div>
+
+        <!-- SECTION 1: THE HOOK -->
+        <div class="section" id="section-0">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="timing">00:00 - 00:30</span>
+                    <h2>The Hook</h2>
+                </div>
+                <span class="section-type">Opening</span>
+            </div>
+
+            <div class="section-description">
+                <h3>Purpose:</h3>
+                <p>Capture attention immediately with relatable pain point. Establish credibility. Promise insider knowledge.</p>
+                <h3>Visual Flow:</h3>
+                <p>LeetCode profile → Interview question → Your credentials (candidate → interviewer transformation)</p>
+            </div>
+
+            <!-- Visual Content -->
+            <div class="visual-content">
+                <div class="visual-header">
+                    <h3>📊 Visual: LeetCode to Interview Transition</h3>
+                    <div class="visual-controls">
+                        <button class="btn btn-success" onclick="exportVisual('hook', 'png')">⬇ Export PNG</button>
+                        <button class="btn btn-success" onclick="exportVisual('hook', 'svg')">⬇ Export SVG</button>
+                    </div>
+                </div>
+                
+                <div class="animation-container" id="hookAnimation">
+                    <div style="text-align: center; padding: 4rem;">
+                        <div id="hookStep1" style="opacity: 0; transition: all 0.8s;">
+                            <h2 style="color: #10b981; font-size: 3rem;">300+ Problems Solved</h2>
+                            <p style="color: #64748b; margin-top: 1rem;">LeetCode Grind Complete ✓</p>
+                        </div>
+                        <div id="hookStep2" style="opacity: 0; transition: all 0.8s; margin-top: 2rem;">
+                            <h2 style="color: #ef4444; font-size: 2rem;">❌ Interview Question Appears</h2>
+                            <p style="color: #64748b; margin-top: 1rem;">"Design a payment system handling 10K TPS"</p>
+                        </div>
+                        <div id="hookStep3" style="opacity: 0; transition: all 0.8s; margin-top: 2rem;">
+                            <h3 style="color: #2563eb;">💡 I've Been On Both Sides</h3>
+                            <p style="color: #64748b; margin-top: 0.5rem;">Visa Interviewer | Klarna Candidate</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-navigation">
+                    <button class="step-nav-btn" onclick="changeStep('hook', -1)" id="hookPrevBtn">◀</button>
+                    <span class="step-indicator" id="hookStepIndicator">Step: 1/3</span>
+                    <button class="step-nav-btn" onclick="changeStep('hook', 1)" id="hookNextBtn">▶</button>
+                </div>
+            </div>
+
+            <!-- Audio Script -->
+            <div class="audio-section">
+                <div class="audio-header" onclick="toggleScript('hook')">
+                    <h3>
+                        <span class="collapse-icon" id="hookCollapseIcon">▼</span>
+                        🎙️ Voice Script (30 seconds)
+                    </h3>
+                    <div class="audio-controls" onclick="event.stopPropagation()">
+                        <button class="btn btn-primary" onclick="copyScript('hook')">📋 Copy</button>
+                    </div>
+                </div>
+                
+                <div class="script-content" id="hookScriptContent">
+                    <div class="script-text" id="hookScript">You grind LeetCode for months. 
+You solve 300+ problems. 
+You finally get the interview at your dream company.
+
+And then...
+
+The interviewer says: 
+"Great! Now design a payment processing system that handles 10,000 transactions per second."
+
+You freeze. LeetCode didn't prepare you for THIS.
+
+I'm Vladyslav, and I've been on BOTH sides of this exact scenario - as a candidate who failed, and as an interviewer at Visa watching candidates make the same mistakes over and over.</div>
+                    
+                    <div class="word-count">Word count: ~85 | Estimated duration: 30 seconds</div>
+                </div>
+
+                <!-- Audio Player -->
+                <div class="audio-player-container">
+                    <audio class="audio-player" id="hookAudio" controls preload="metadata">
+                        <source src="audio/hook-section.mp3" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <div class="audio-info">
+                        <span id="hookAudioDuration">Duration: 00:30</span>
+                        <button class="btn btn-success" onclick="downloadAudio('hook')">⬇ Download Audio</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Production Notes -->
+            <div class="production-notes">
+                <h4>📹 Production Notes for Editor:</h4>
+                <ul>
+                    <li><strong>Pacing:</strong> Fast cuts, high energy</li>
+                    <li><strong>Music:</strong> Dramatic/tense (problem awareness)</li>
+                    <li><strong>B-Roll:</strong> LeetCode profile screenshot, Zoom interview mockup</li>
+                    <li><strong>Transition:</strong> Quick fade between steps (0.5s)</li>
+                    <li><strong>Text Overlay:</strong> "300+ Problems" → "Interview Question" → "Both Sides"</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SECTION 2: THE PROBLEM -->
+        <div class="section" id="section-1">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="timing">00:30 - 01:30</span>
+                    <h2>The Problem</h2>
+                </div>
+                <span class="section-type">Problem Definition</span>
+            </div>
+
+            <div class="section-description">
+                <h3>Purpose:</h3>
+                <p>Define the gap between what people prepare (LeetCode) vs what's actually tested (production systems)</p>
+                <h3>Visual Flow:</h3>
+                <p>Pie chart (30/70 split) → Comparison table → Company logos with stats → Real questions scroll</p>
+            </div>
+
+            <!-- Visual Content: Pie Chart -->
+            <div class="visual-content">
+                <div class="visual-header">
+                    <h3>📊 Visual: The 30/70 Split</h3>
+                    <div class="visual-controls">
+                        <button class="btn btn-success" onclick="exportVisual('pie', 'png')">⬇ Export PNG</button>
+                        <button class="btn btn-success" onclick="exportVisual('pie', 'svg')">⬇ Export SVG</button>
+                    </div>
+                </div>
+                
+                <div class="animation-container" id="pieChartContainer">
+                    <svg class="pie-chart" id="pieChart" viewBox="0 0 400 400">
+                        <!-- Chart will be drawn here -->
+                    </svg>
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <div style="display: inline-block; margin: 0 1rem;">
+                            <span style="display: inline-block; width: 20px; height: 20px; background: #10b981; vertical-align: middle;"></span>
+                            <span style="margin-left: 0.5rem; color: #1e293b;">LeetCode (30%)</span>
+                        </div>
+                        <div style="display: inline-block; margin: 0 1rem;">
+                            <span style="display: inline-block; width: 20px; height: 20px; background: #ef4444; vertical-align: middle;"></span>
+                            <span style="margin-left: 0.5rem; color: #1e293b;">Real Skills (70%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-navigation">
+                    <button class="step-nav-btn" onclick="changeStep('pie', -1)" id="piePrevBtn">◀</button>
+                    <span class="step-indicator" id="pieStepIndicator">Step: 1/3</span>
+                    <button class="step-nav-btn" onclick="changeStep('pie', 1)" id="pieNextBtn">▶</button>
+                </div>
+            </div>
+
+            <!-- Audio Script -->
+            <div class="audio-section">
+                <div class="audio-header" onclick="toggleScript('problem')">
+                    <h3>
+                        <span class="collapse-icon" id="problemCollapseIcon">▼</span>
+                        🎙️ Voice Script (60 seconds)
+                    </h3>
+                    <div class="audio-controls" onclick="event.stopPropagation()">
+                        <button class="btn btn-primary" onclick="copyScript('problem')">📋 Copy</button>
+                    </div>
+                </div>
+                
+                <div class="script-content" id="problemScriptContent">
+                    <div class="script-text" id="problemScript">Here's the brutal truth most interview prep courses won't tell you:
+
+LeetCode is only 30% of senior-level interviews.
+The other 70%? 
+
+Business logic implementation. 
+Production-ready code.
+System design.
+Real-world trade-offs.
+
+And here's what makes it worse - most courses CAN'T teach this properly because they've never:
+- Processed millions of credit card transactions
+- Debugged a race condition in production
+- Explained technical decisions to non-technical stakeholders
+
+I have. At Visa. At Klarna. In real interviews that I passed AND failed.
+
+And I'm going to show you EXACTLY what they're looking for.</div>
+                    
+                    <div class="word-count">Word count: ~110 | Estimated duration: 60 seconds</div>
+                </div>
+
+                <!-- Audio Player -->
+                <div class="audio-player-container">
+                    <audio class="audio-player" id="problemAudio" controls preload="metadata">
+                        <source src="audio/problem-section.mp3" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <div class="audio-info">
+                        <span id="problemAudioDuration">Duration: 01:00</span>
+                        <button class="btn btn-success" onclick="downloadAudio('problem')">⬇ Download Audio</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Production Notes -->
+            <div class="production-notes">
+                <h4>📹 Production Notes for Editor:</h4>
+                <ul>
+                    <li><strong>Pacing:</strong> Medium pace, let statistics sink in</li>
+                    <li><strong>Music:</strong> Thoughtful/analytical</li>
+                    <li><strong>B-Roll:</strong> Pie chart animation, comparison table slides</li>
+                    <li><strong>Emphasis:</strong> "30%" and "70%" need visual punch</li>
+                    <li><strong>Company Logos:</strong> Fade in Visa + Klarna with subtle animation</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SECTION 3: INTERVIEW KILLER #1 -->
+        <div class="section" id="section-2">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="timing">01:30 - 02:10</span>
+                    <h2>Interview Killer #1: Business Logic</h2>
+                </div>
+                <span class="section-type">Core Content</span>
+            </div>
+
+            <div class="section-description">
+                <h3>Purpose:</h3>
+                <p>Show concrete example of what "business logic" means and why candidates fail</p>
+                <h3>Visual Flow:</h3>
+                <p>Simple question → Naive solution → Issues emerge one-by-one → 80% fail stat</p>
+            </div>
+
+            <!-- Visual Content: Killer Animation -->
+            <div class="visual-content">
+                <div class="visual-header">
+                    <h3>📊 Visual: The Implementation Gap</h3>
+                    <div class="visual-controls">
+                        <button class="btn btn-success" onclick="exportVisual('killer1', 'png')">⬇ Export PNG</button>
+                    </div>
+                </div>
+                
+                <div class="animation-container" id="killer1Animation">
+                    <div class="killer-card visible" id="killer1Step1">
+                        <div class="killer-number">#1</div>
+                        <h3 style="color: #f1f5f9; margin-bottom: 1rem;">Business Logic Complexity</h3>
+                        <p style="color: #cbd5e1;">The question seems simple: "Implement a money transfer system"</p>
+                    </div>
+
+                    <div class="code-block" id="killer1Step2" style="opacity: 0; transition: all 0.5s; margin-top: 1rem;">
+                        <code>
+<span class="comment">// Naive Solution - looks good but...</span>
+<span class="keyword">class</span> <span class="function">MoneyTransfer</span> {
+    HashMap&lt;String, Account&gt; accounts;
+    
+    <span class="keyword">void</span> <span class="function">transfer</span>(String from, String to, <span class="keyword">double</span> amount) {
+        accounts.get(from).balance -= amount;
+        accounts.get(to).balance += amount;
+    }
+}
+                        </code>
+                    </div>
+
+                    <div id="killer1Step3" style="opacity: 0; transition: all 0.5s; margin-top: 1rem;">
+                        <div style="background: rgba(239, 68, 68, 0.1); padding: 1.5rem; border-left: 4px solid #ef4444; border-radius: 8px;">
+                            <h4 style="color: #ef4444; margin-bottom: 1rem;">❌ Critical Issues:</h4>
+                            <ul style="color: #cbd5e1; line-height: 2;">
+                                <li>🔴 Database crash after debit but before credit</li>
+                                <li>🔴 Network retry causes double-charging</li>
+                                <li>🔴 Race conditions with concurrent transfers</li>
+                            </ul>
+                            <p style="color: #ef4444; margin-top: 1rem; font-size: 1.5rem; font-weight: bold;">
+                                80% of candidates fail this
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-navigation">
+                    <button class="step-nav-btn" onclick="changeStep('killer1', -1)" id="killer1PrevBtn">◀</button>
+                    <span class="step-indicator" id="killer1StepIndicator">Step: 1/3</span>
+                    <button class="step-nav-btn" onclick="changeStep('killer1', 1)" id="killer1NextBtn">▶</button>
+                </div>
+            </div>
+
+            <!-- Audio Script -->
+            <div class="audio-section">
+                <div class="audio-header" onclick="toggleScript('killer1')">
+                    <h3>
+                        <span class="collapse-icon" id="killer1CollapseIcon">▼</span>
+                        🎙️ Voice Script (40 seconds)
+                    </h3>
+                    <div class="audio-controls" onclick="event.stopPropagation()">
+                        <button class="btn btn-primary" onclick="copyScript('killer1')">📋 Copy</button>
+                    </div>
+                </div>
+                
+                <div class="script-content" id="killer1ScriptContent">
+                    <div class="script-text" id="killer1Script">Interview Killer #1: Business Logic Implementation
+
+The question seems simple: "Implement a money transfer system."
+
+Most candidates jump straight to: HashMap, REST API, done.
+
+But they miss:
+- What if the database crashes AFTER debiting but BEFORE crediting?
+- How do you prevent double-charging on network retry?
+- What about concurrent transfers causing race conditions?
+
+This is what I call the "Implementation Gap" - the space between solving the algorithm and building production-ready systems.
+
+At Visa, I saw candidates with perfect algorithmic solutions fail this 80% of the time.</div>
+                    
+                    <div class="word-count">Word count: ~90 | Estimated duration: 40 seconds</div>
+                </div>
+
+                <!-- Audio Player -->
+                <div class="audio-player-container">
+                    <audio class="audio-player" id="killer1Audio" controls preload="metadata">
+                        <source src="audio/killer1-section.mp3" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <div class="audio-info">
+                        <span id="killer1AudioDuration">Duration: 00:40</span>
+                        <button class="btn btn-success" onclick="downloadAudio('killer1')">⬇ Download Audio</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Production Notes -->
+            <div class="production-notes">
+                <h4>📹 Production Notes for Editor:</h4>
+                <ul>
+                    <li><strong>Animation:</strong> Code appears with green checkmarks initially</li>
+                    <li><strong>Then:</strong> Red X's and bombs drop on each issue</li>
+                    <li><strong>Final shot:</strong> "80% FAIL" counter animation</li>
+                    <li><strong>Emphasis:</strong> Each issue needs 2-3 seconds to register</li>
+                    <li><strong>Music:</strong> Build tension as issues emerge</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Add more sections here... -->
+    </div>
+
+    <script>
+        // Global state
+        const animations = {
+            hook: { current: 1, max: 3 },
+            pie: { current: 1, max: 3 },
+            killer1: { current: 1, max: 3 }
+        };
+
+        // Sidebar Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('timelineSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const burger = document.querySelector('.burger-menu');
+            
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+            burger.classList.toggle('open');
+        }
+
+        function closeSidebar() {
+            document.getElementById('timelineSidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('show');
+            document.querySelector('.burger-menu').classList.remove('open');
+        }
+
+        function goToSection(index) {
+            const section = document.getElementById(`section-${index}`);
+            if (section) {
+                closeSidebar();
+                setTimeout(() => {
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 300);
+            }
+        }
+
+        // Export Menu Toggle
+        function toggleExportMenu() {
+            document.getElementById('exportMenu').classList.toggle('show');
+        }
+
+        // Close export menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.export-dropdown')) {
+                document.getElementById('exportMenu').classList.remove('show');
+            }
+        });
+
+        // Progress Tracking
+        function updateProgress() {
+            const checkboxes = document.querySelectorAll('.timeline-checkbox');
+            const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+            document.getElementById('progressIndicator').textContent = 
+                `Completed: ${checked}/${checkboxes.length} sections`;
+            
+            // Update timeline item styling
+            checkboxes.forEach((cb, index) => {
+                const item = cb.closest('.timeline-item');
+                if (cb.checked) {
+                    item.classList.add('completed');
+                } else {
+                    item.classList.remove('completed');
+                }
+            });
+        }
+
+        // Step Navigation with Arrows
+        function changeStep(animation, direction) {
+            const state = animations[animation];
+            const newStep = state.current + direction;
+            
+            if (newStep >= 1 && newStep <= state.max) {
+                state.current = newStep;
+                showStep(animation, newStep);
+                updateStepButtons(animation);
+            }
+        }
+
+        function showStep(animation, step) {
+            animations[animation].current = step;
+            
+            if (animation === 'hook') {
+                const steps = ['hookStep1', 'hookStep2', 'hookStep3'];
+                steps.forEach((id, index) => {
+                    document.getElementById(id).style.opacity = index < step ? '1' : '0';
+                });
+            } else if (animation === 'pie') {
+                showPieStep(step);
+            } else if (animation === 'killer1') {
+                const elements = ['killer1Step1', 'killer1Step2', 'killer1Step3'];
+                elements.forEach((id, index) => {
+                    const element = document.getElementById(id);
+                    if (index < step) {
+                        if (element.classList.contains('killer-card')) {
+                            element.classList.add('visible');
+                        } else {
+                            element.style.opacity = '1';
+                        }
+                    } else {
+                        if (element.classList.contains('killer-card')) {
+                            element.classList.remove('visible');
+                        } else {
+                            element.style.opacity = '0';
+                        }
+                    }
+                });
+            }
+            
+            document.getElementById(`${animation}StepIndicator`).textContent = `Step: ${step}/${animations[animation].max}`;
+            updateStepButtons(animation);
+        }
+
+        function updateStepButtons(animation) {
+            const state = animations[animation];
+            const prevBtn = document.getElementById(`${animation}PrevBtn`);
+            const nextBtn = document.getElementById(`${animation}NextBtn`);
+            
+            prevBtn.disabled = state.current === 1;
+            nextBtn.disabled = state.current === state.max;
+        }
+
+        // Pie Chart Animation
+        function showPieStep(step) {
+            const svg = document.getElementById('pieChart');
+            svg.innerHTML = '';
+            
+            const centerX = 200;
+            const centerY = 200;
+            const radius = 120;
+            
+            function createSlice(startAngle, endAngle, color) {
+                const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+                const startX = centerX + radius * Math.cos(startAngle * Math.PI / 180);
+                const startY = centerY + radius * Math.sin(startAngle * Math.PI / 180);
+                const endX = centerX + radius * Math.cos(endAngle * Math.PI / 180);
+                const endY = centerY + radius * Math.sin(endAngle * Math.PI / 180);
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const d = [
+                    `M ${centerX} ${centerY}`,
+                    `L ${startX} ${startY}`,
+                    `A ${radius} ${radius} 0 ${largeArc} 1 ${endX} ${endY}`,
+                    'Z'
+                ].join(' ');
+                
+                path.setAttribute('d', d);
+                path.setAttribute('fill', color);
+                path.setAttribute('stroke', '#1e293b');
+                path.setAttribute('stroke-width', '2');
+                
+                svg.appendChild(path);
+            }
+            
+            if (step >= 1) {
+                createSlice(-90, 18, '#10b981'); // 30% LeetCode
+            }
+            if (step >= 2) {
+                createSlice(18, 252, '#ef4444'); // 70% Real Skills
+            }
+        }
+
+        // Copy Script
+        function copyScript(section) {
+            const scriptElement = document.getElementById(`${section}Script`);
+            const text = scriptElement.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ Script copied to clipboard! Ready for ElevenLabs.');
+            });
+        }
+
+        // Toggle Script Visibility
+        function toggleScript(section) {
+            const content = document.getElementById(`${section}ScriptContent`);
+            const icon = document.getElementById(`${section}CollapseIcon`);
+            
+            content.classList.toggle('collapsed');
+            icon.classList.toggle('collapsed');
+        }
+
+        // Download Audio
+        function downloadAudio(section) {
+            const audio = document.getElementById(`${section}Audio`);
+            const src = audio.querySelector('source').src;
+            
+            // Create temporary link and trigger download
+            const a = document.createElement('a');
+            a.href = src;
+            a.download = `${section}-voiceover.mp3`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Update audio duration when metadata loads
+        function initAudioPlayers() {
+            const audioPlayers = document.querySelectorAll('.audio-player');
+            
+            audioPlayers.forEach(audio => {
+                audio.addEventListener('loadedmetadata', function() {
+                    const duration = this.duration;
+                    const minutes = Math.floor(duration / 60);
+                    const seconds = Math.floor(duration % 60);
+                    const durationText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    const section = this.id.replace('Audio', '');
+                    const durationElement = document.getElementById(`${section}AudioDuration`);
+                    if (durationElement) {
+                        durationElement.textContent = `Duration: ${durationText}`;
+                    }
+                });
+
+                // Handle audio not found
+                audio.addEventListener('error', function() {
+                    console.log(`Audio file not found for ${this.id}. Generate it first using ElevenLabs.`);
+                    // Optionally show placeholder message
+                });
+            });
+        }
+
+        // Export Visuals
+        function exportVisual(type, format) {
+            alert(`Exporting ${type} as ${format.toUpperCase()}...\n\nWould use html2canvas or SVG export in production.`);
+        }
+
+        // Export Functions
+        function exportFullLesson() {
+            alert('Would export complete lesson package:\n- All voice scripts (TXT)\n- All visuals (PNG/SVG)\n- Production guide (PDF)\n- Timing data (JSON)');
+        }
+
+        function exportVoiceScripts() {
+            alert('Would export all voice scripts as single document for ElevenLabs batch processing.');
+        }
+
+        function exportProduction() {
+            alert('Would export production guide with:\n- Shot list\n- Timing breakdown\n- Music cues\n- Transition notes');
+        }
+
+        function exportAssets() {
+            alert('Would create ZIP file with:\n- All images\n- All audio files\n- All scripts\n- Production notes');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize all step buttons
+            updateStepButtons('hook');
+            updateStepButtons('pie');
+            updateStepButtons('killer1');
+            
+            // Show first step of pie chart
+            showPieStep(1);
+
+            // Initialize audio players
+            initAudioPlayers();
+        });
+    </script>
+</body>
+</html>
