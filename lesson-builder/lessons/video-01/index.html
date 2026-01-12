@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video 01: Why You Keep Failing Interviews | Lesson Builder</title>
+    <meta name="description" content="Lesson builder for Video 01 - Why You Keep Failing Interviews. Build production scripts, visuals, and audio for interview preparation course.">
+    
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="../../shared/css/base.css">
+    <link rel="stylesheet" href="../../shared/css/components.css">
+    <link rel="stylesheet" href="../../shared/css/animations.css">
+    
+    <!-- Lesson-specific overrides -->
+    <style>
+        /* Optional: Override primary color for this lesson */
+        :root {
+            --lesson-accent: #ef4444;
+        }
+        
+        .section.killer {
+            border-left-color: var(--danger);
+        }
+        
+        .section.solution {
+            border-left-color: var(--success);
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation (populated by TopNav component) -->
+    <div id="topNav"></div>
+    
+    <!-- Sidebar Overlay -->
+    <div id="sidebarOverlay"></div>
+    
+    <!-- Timeline Sidebar (populated by Timeline component) -->
+    <div id="timelineSidebar"></div>
+    
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Lesson Header -->
+        <div class="lesson-header">
+            <h1>Why You Keep Failing Interviews</h1>
+            <div class="meta">Duration: 7:00 | Type: Introduction & Problem Awareness</div>
+        </div>
+        
+        <!-- Sections will be dynamically created, but we include placeholders for SEO/progressive enhancement -->
+        
+        <!-- Section 1: The Hook -->
+        <div id="section-hook" class="section">
+            <div class="section-header">
+                <div class="section-title">
+                    <span class="timing">00:00 - 00:30</span>
+                    <h2>The Hook</h2>
+                </div>
+                <span class="section-type">Opening</span>
+            </div>
+            
+            <div class="section-description">
+                <h3>Purpose:</h3>
+                <p>Capture attention immediately with relatable pain point. Establish credibility. Promise insider knowledge.</p>
+            </div>
+            
+            <!-- Visual Content -->
+            <div class="visual-content" data-visual="hook">
+                <div class="visual-header">
+                    <h3>📊 Visual: LeetCode to Interview Transition</h3>
+                    <div class="visual-controls">
+                        <button class="btn btn-success" data-export-visual="png">⬇ Export PNG</button>
+                        <button class="btn btn-success" data-export-visual="svg">⬇ Export SVG</button>
+                    </div>
+                </div>
+                
+                <div class="animation-container" id="hook-transition-container">
+                    <div style="text-align: center; padding: 3rem;">
+                        <div id="hookStep1" style="opacity: 0; transition: all 0.8s;">
+                            <h2 style="color: #10b981; font-size: 3rem;">300+ Problems Solved</h2>
+                            <p style="color: #64748b; margin-top: 1rem;">LeetCode Grind Complete ✓</p>
+                        </div>
+                        <div id="hookStep2" style="opacity: 0; transition: all 0.8s; margin-top: 2rem;">
+                            <h2 style="color: #ef4444; font-size: 2rem;">❌ Interview Question Appears</h2>
+                            <p style="color: #64748b; margin-top: 1rem;">"Design a payment processing system that handles 10,000 transactions per second."</p>
+                        </div>
+                        <div id="hookStep3" style="opacity: 0; transition: all 0.8s; margin-top: 2rem;">
+                            <h3 style="color: #2563eb;">💡 I've Been On Both Sides</h3>
+                            <p style="color: #64748b; margin-top: 0.5rem;">Visa Interviewer | Klarna Candidate</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step-navigation" data-visual-nav="hook-transition">
+                    <!-- StepNavigator will populate this -->
+                </div>
+            </div>
+            
+            <!-- Audio Section -->
+            <div class="audio-section" data-audio="hook">
+                <div class="audio-header" data-toggle="script">
+                    <h3>
+                        <span class="collapse-icon">▼</span>
+                        🎙️ Voice Script (30 seconds)
+                    </h3>
+                    <div class="audio-controls">
+                        <button class="btn btn-primary" data-action="copy-script">📋 Copy</button>
+                    </div>
+                </div>
+                
+                <div class="script-content" data-script-content>
+                    <div class="script-text" data-script-text>You grind LeetCode for months. 
+You solve 300+ problems. 
+You finally get the interview at your dream company.
+
+And then...
+
+The interviewer says: 
+"Great! Now design a payment processing system that handles 10,000 transactions per second."
+
+You freeze. LeetCode didn't prepare you for THIS.
+
+I'm Vladyslav, and I've been on BOTH sides of this exact scenario - as a candidate who failed, and as an interviewer at Visa watching candidates make the same mistakes over and over.</div>
+                    
+                    <div class="word-count">Word count: ~85 | Estimated duration: 30 seconds</div>
+                </div>
+                
+                <div class="audio-player-container">
+                    <audio class="audio-player" controls preload="metadata">
+                        <source src="audio/hook-section.mp3" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <div class="audio-info">
+                        <span data-audio-duration>Duration: 00:30</span>
+                        <button class="btn btn-success" data-action="download-audio">⬇ Download Audio</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Production Notes -->
+            <div class="production-notes">
+                <h4>📹 Production Notes for Editor:</h4>
+                <ul>
+                    <li><strong>Pacing:</strong> Fast cuts, high energy</li>
+                    <li><strong>Music:</strong> Dramatic/tense (problem awareness)</li>
+                    <li><strong>B-Roll:</strong> LeetCode profile screenshot, Zoom interview mockup</li>
+                    <li><strong>Transition:</strong> Quick fade between steps (0.5s)</li>
+                    <li><strong>Text Overlay:</strong> "300+ Problems" → "Interview Question" → "Both Sides"</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Additional sections will be dynamically rendered by LessonCore -->
+        
+        <div id="section-problem"></div>
+        <div id="section-killer1"></div>
+        <div id="section-killer2"></div>
+        <div id="section-killer3"></div>
+        <div id="section-solution"></div>
+        <div id="section-proof"></div>
+        <div id="section-cta"></div>
+    </div>
+    
+    <!-- Initialize Lesson -->
+    <script type="module">
+        import { LessonCore } from '../../shared/js/core/LessonCore.js';
+        import { lessonConfig } from './config.js';
+        import { createVisuals } from './visuals.js';
+        
+        // Wait for DOM
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Initialize lesson with config and visuals
+                await LessonCore.init(lessonConfig, createVisuals());
+                console.log('Lesson initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize lesson:', error);
+            }
+        });
+    </script>
+</body>
+</html>

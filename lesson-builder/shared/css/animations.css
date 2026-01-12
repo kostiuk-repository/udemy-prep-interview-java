@@ -1,0 +1,510 @@
+/**
+ * Animations CSS - Transitions, Keyframes, Visibility States
+ * Lesson Builder System
+ */
+
+/* ==========================================================================
+   FADE ANIMATIONS
+   ========================================================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ==========================================================================
+   SCALE ANIMATIONS
+   ========================================================================== */
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes scaleOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@keyframes bounce {
+
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
+        transform: translateY(0);
+    }
+
+    40% {
+        transform: translateY(-10px);
+    }
+
+    60% {
+        transform: translateY(-5px);
+    }
+}
+
+/* ==========================================================================
+   SLIDE ANIMATIONS
+   ========================================================================== */
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutLeft {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-100%);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInDown {
+    from {
+        transform: translateY(-100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================================================
+   ROTATION ANIMATIONS
+   ========================================================================== */
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes rotateIn {
+    from {
+        opacity: 0;
+        transform: rotate(-180deg);
+    }
+
+    to {
+        opacity: 1;
+        transform: rotate(0deg);
+    }
+}
+
+/* ==========================================================================
+   SPECIAL ANIMATIONS
+   ========================================================================== */
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-5px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(5px);
+    }
+}
+
+@keyframes typing {
+    from {
+        width: 0;
+    }
+
+    to {
+        width: 100%;
+    }
+}
+
+@keyframes blink {
+
+    0%,
+    50% {
+        opacity: 1;
+    }
+
+    51%,
+    100% {
+        opacity: 0;
+    }
+}
+
+/* ==========================================================================
+   PROGRESS ANIMATIONS
+   ========================================================================== */
+
+@keyframes progressBar {
+    from {
+        width: 0%;
+    }
+
+    to {
+        width: var(--progress, 100%);
+    }
+}
+
+@keyframes countUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================================================
+   PIE CHART ANIMATIONS
+   ========================================================================== */
+
+@keyframes drawPieSlice {
+    from {
+        stroke-dashoffset: var(--circumference);
+    }
+
+    to {
+        stroke-dashoffset: var(--slice-offset);
+    }
+}
+
+/* ==========================================================================
+   UTILITY ANIMATION CLASSES
+   ========================================================================== */
+
+.animate-fadeIn {
+    animation: fadeIn 0.3s ease forwards;
+}
+
+.animate-fadeOut {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+.animate-fadeInUp {
+    animation: fadeInUp 0.4s ease forwards;
+}
+
+.animate-fadeInDown {
+    animation: fadeInDown 0.4s ease forwards;
+}
+
+.animate-fadeInLeft {
+    animation: fadeInLeft 0.4s ease forwards;
+}
+
+.animate-fadeInRight {
+    animation: fadeInRight 0.4s ease forwards;
+}
+
+.animate-scaleIn {
+    animation: scaleIn 0.3s ease forwards;
+}
+
+.animate-pulse {
+    animation: pulse 2s infinite;
+}
+
+.animate-bounce {
+    animation: bounce 1s ease;
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+.animate-shake {
+    animation: shake 0.5s ease;
+}
+
+/* ==========================================================================
+   ANIMATION DELAYS
+   ========================================================================== */
+
+.delay-100 {
+    animation-delay: 100ms;
+}
+
+.delay-200 {
+    animation-delay: 200ms;
+}
+
+.delay-300 {
+    animation-delay: 300ms;
+}
+
+.delay-400 {
+    animation-delay: 400ms;
+}
+
+.delay-500 {
+    animation-delay: 500ms;
+}
+
+.delay-600 {
+    animation-delay: 600ms;
+}
+
+.delay-700 {
+    animation-delay: 700ms;
+}
+
+.delay-800 {
+    animation-delay: 800ms;
+}
+
+.delay-900 {
+    animation-delay: 900ms;
+}
+
+.delay-1000 {
+    animation-delay: 1000ms;
+}
+
+/* ==========================================================================
+   ANIMATION DURATIONS
+   ========================================================================== */
+
+.duration-fast {
+    animation-duration: 0.15s;
+}
+
+.duration-normal {
+    animation-duration: 0.3s;
+}
+
+.duration-slow {
+    animation-duration: 0.5s;
+}
+
+.duration-slower {
+    animation-duration: 0.8s;
+}
+
+.duration-slowest {
+    animation-duration: 1s;
+}
+
+/* ==========================================================================
+   TRANSITION UTILITY CLASSES
+   ========================================================================== */
+
+.transition-none {
+    transition: none;
+}
+
+.transition-all {
+    transition: all 0.3s ease;
+}
+
+.transition-colors {
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.transition-opacity {
+    transition: opacity 0.3s ease;
+}
+
+.transition-transform {
+    transition: transform 0.3s ease;
+}
+
+.transition-shadow {
+    transition: box-shadow 0.3s ease;
+}
+
+/* ==========================================================================
+   VISIBILITY STATES
+   ========================================================================== */
+
+.is-hidden {
+    display: none !important;
+}
+
+.is-invisible {
+    visibility: hidden;
+    opacity: 0;
+}
+
+.is-visible {
+    visibility: visible;
+    opacity: 1;
+}
+
+.is-entering {
+    animation: fadeIn 0.3s ease forwards;
+}
+
+.is-leaving {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
