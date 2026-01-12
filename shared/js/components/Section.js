@@ -80,7 +80,7 @@ export const Section = {
                         </div>
                     </div>
                     <div class="script-content" data-script-content>
-                        <div class="script-text" data-script-text>${config.audio.script || ''}</div>
+                        <div class="script-text" data-script-text data-visual-id="${config.visual?.id || ''}">${this._processScriptWithSyncPoints(config.audio.script, config.visual?.syncPoints)}</div>
                         <div class="word-count">
                             Word count: ~${config.audio.wordCount || this._countWords(config.audio.script)} | 
                             Estimated duration: ${config.audio.estimatedDuration || 30} seconds
@@ -135,6 +135,36 @@ export const Section = {
     _countWords(text) {
         if (!text) return 0;
         return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+    },
+
+    /**
+     * Process script text to wrap sync points with highlight spans
+     * @private
+     * @param {string} script - The script text
+     * @param {Array} syncPoints - Array of {step, highlight} objects
+     * @returns {string} Processed HTML string
+     */
+    _processScriptWithSyncPoints(script, syncPoints) {
+        if (!script) return '';
+        if (!syncPoints || syncPoints.length === 0) return script;
+
+        let processedScript = script;
+
+        // Sort syncPoints by highlight length (longest first) to avoid partial replacements
+        const sortedPoints = [...syncPoints].sort((a, b) =>
+            b.highlight.length - a.highlight.length
+        );
+
+        // Replace each sync point with a highlighted span
+        sortedPoints.forEach(point => {
+            const escapedHighlight = point.highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${escapedHighlight})`, 'g');
+            processedScript = processedScript.replace(regex,
+                `<span class="sync-highlight" data-sync-step="${point.step}">$1</span>`
+            );
+        });
+
+        return processedScript;
     },
 
     /**

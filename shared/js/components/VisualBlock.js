@@ -103,10 +103,36 @@ export const VisualBlock = {
             this._renderBuiltinStep(instance, stepNumber);
         }
 
+        // Update script sync highlights
+        this._updateSyncHighlights(visualId, stepNumber);
+
         EventBus.emit(Events.VISUAL_STEP_RENDERED, {
             visualId,
             step: stepNumber
         });
+    },
+
+    /**
+     * Update sync highlights in script section
+     * @private
+     */
+    _updateSyncHighlights(visualId, stepNumber) {
+        // Find script text element that matches this visual
+        const scriptText = document.querySelector(`[data-visual-id="${visualId}"]`);
+        if (!scriptText) return;
+
+        // Remove active class from all highlights
+        scriptText.querySelectorAll('.sync-highlight').forEach(el => {
+            el.classList.remove('active');
+        });
+
+        // Add active class to current step's highlight
+        const activeHighlight = scriptText.querySelector(`[data-sync-step="${stepNumber}"]`);
+        if (activeHighlight) {
+            activeHighlight.classList.add('active');
+            // Scroll highlight into view within the script container
+            activeHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     },
 
     /**

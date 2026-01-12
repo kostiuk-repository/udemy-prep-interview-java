@@ -257,7 +257,17 @@ Most courses teach you to draw. I'll teach you to DEFEND.`,
             visual: {
                 id: 'spider-framework',
                 title: 'The SPIDER Framework',
-                steps: 7
+                steps: 7,
+                // Map each step to the text that should be highlighted in the script
+                syncPoints: [
+                    { step: 1, highlight: "I've developed the SPIDER Framework" },
+                    { step: 2, highlight: "S - Scope: Clarify requirements before coding" },
+                    { step: 3, highlight: "P - Plan: Structure your solution verbally first" },
+                    { step: 4, highlight: "I - Implement: Write production-quality code" },
+                    { step: 5, highlight: "D - Debug: Trace through edge cases" },
+                    { step: 6, highlight: "E - Evaluate: Discuss trade-offs honestly" },
+                    { step: 7, highlight: "R - Refine: Optimize with interviewer feedback" }
+                ]
             },
 
             audio: {
