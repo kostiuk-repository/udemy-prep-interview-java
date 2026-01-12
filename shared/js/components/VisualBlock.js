@@ -99,12 +99,14 @@ export const VisualBlock = {
             wrapper = document.createElement('div');
             wrapper.className = 'visual-canvas-wrapper';
             wrapper.style.cssText = `
-                aspect-ratio: 16 / 10;
                 width: 100%;
-                max-width: 100%;
-                position: relative;
-                overflow: hidden;
-                background: transparent;
+                height: 100%;
+                position: absolute;
+                top: 0;
+                left: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             `;
             container.appendChild(wrapper);
         }
@@ -118,6 +120,7 @@ export const VisualBlock = {
                 width: 100%;
                 height: 100%;
                 display: block;
+                object-fit: contain;
             `;
             wrapper.appendChild(canvas);
         }

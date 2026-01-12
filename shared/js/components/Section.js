@@ -53,7 +53,7 @@ export const Section = {
                         <h3>📊 Visual: ${config.visual.title || config.title}</h3>
                         <div class="visual-controls">
                             <button class="btn btn-success" data-export-visual="png">⬇ Export PNG</button>
-                            <button class="btn btn-success" data-export-visual="svg">⬇ Export SVG</button>
+                            <button class="btn btn-primary" data-export-visual="video">🎬 Export Video</button>
                         </div>
                     </div>
                     <div class="animation-container" id="${config.visual.id}-container">
