@@ -120,60 +120,38 @@ export class VideoExporter {
         await new Promise(r => setTimeout(r, 100));
 
         try {
-            const totalFrames = this._calculateTotalFrames(scene, holdFrames);
+            const totalFrames = engine.getTotalFrames();
             const frameInterval = 1000 / this.fps;
-            let frameIndex = 0;
 
-            // Render Loop
-            for (let stepIndex = 0; stepIndex < scene.steps.length; stepIndex++) {
+            // Ensure easing function is set (required by _updateInterpolatedState)
+            engine.easingFn = (t) => t; // Linear for export - smooth transitions
+
+            // Render each frame deterministically
+            for (let frame = 0; frame < totalFrames; frame++) {
                 if (!this.isRecording) break;
 
-                const step = scene.steps[stepIndex];
-                const stepDuration = step.duration ?? scene.duration ?? 1000;
-                const transitionFrames = Math.ceil((stepDuration / 1000) * this.fps);
+                // Seek to specific frame position
+                engine.seekToFrame(frame);
 
-                // Transition
-                for (let f = 0; f < transitionFrames; f++) {
-                    const progress = f / transitionFrames;
+                // Get the computed state for this frame
+                const state = engine.getCurrentState();
 
-                    if (stepIndex > 0) {
-                        engine.previousState = engine._buildStateFromStep(scene.steps[stepIndex - 1]);
-                    }
-                    engine._targetState = engine._buildStateFromStep(step);
-                    engine._detectObjectChanges(engine._targetState);
-                    engine.animationProgress = progress;
+                // Render to canvas
+                renderer.render(state, { background: scene.background });
 
-                    // Important: Update engine time
-                    engine.update(frameInterval);
+                // Wait for frame interval (required for captureStream to capture)
+                await new Promise(r => setTimeout(r, frameInterval));
 
-                    // Render
-                    const state = engine.getCurrentState();
-                    renderer.render(state, { background: scene.background }); // Keep transparency for video
+                // Report progress
+                if (onProgress) onProgress(frame + 1, totalFrames);
+            }
 
-                    // Sync wait to match FPS
-                    await new Promise(r => setTimeout(r, frameInterval));
-
-                    frameIndex++;
-                    if (onProgress) onProgress(frameIndex, totalFrames);
-                }
-
-                // Hold
-                for (let h = 0; h < holdFrames; h++) {
-                    if (!this.isRecording) break;
-
-                    // Just re-render same state or let stream capture (but forcing render ensures stream updates)
-                    // renderer.render(engine.getCurrentState(), { background: scene.background }); 
-                    // Actually, for captureStream to pick up, we technically just need to wait, 
-                    // but redrawing ensures the stream sees a "new" frame if the browser dedupes identical frames.
-                    // Doing a dummy draw or small pixel change can help, but usually redrawing is enough.
-                    const state = engine.getCurrentState();
-                    renderer.render(state, { background: scene.background });
-
-                    await new Promise(r => setTimeout(r, frameInterval));
-
-                    frameIndex++;
-                    if (onProgress) onProgress(frameIndex, totalFrames);
-                }
+            // Hold on final frame for a moment
+            for (let h = 0; h < holdFrames; h++) {
+                if (!this.isRecording) break;
+                const state = engine.getCurrentState();
+                renderer.render(state, { background: scene.background });
+                await new Promise(r => setTimeout(r, frameInterval));
             }
 
             recorder.stop();
