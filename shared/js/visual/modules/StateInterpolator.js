@@ -6,7 +6,8 @@
  * Contains: lerp, easing, property interpolation, color interpolation.
  */
 
-import { lerp, getEasing, easeInOutCubic } from '../utils/animation.js';
+// FIX: Path was '../utils/animation.js', but since we are in 'modules', we need to go up two levels.
+import { lerp, getEasing, easeInOutCubic } from '../../utils/animation.js';
 
 // ==========================================================================
 // DEFAULT PROPERTY VALUES
