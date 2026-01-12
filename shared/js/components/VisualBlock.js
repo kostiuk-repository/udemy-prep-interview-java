@@ -1,61 +1,74 @@
 /**
- * VisualBlock Component - Container for Animated Visuals
+ * VisualBlock Component - State-Based Animation Container
  * Lesson Builder System
+ * 
+ * Features:
+ * - Dual mode: Interactive (0.5x preview) vs Export (1.0x full)
+ * - Step navigation with animated transitions
+ * - PNG/SVG export at 4K resolution
+ * - Video export with progress indicator
  */
 
 import { EventBus, Events } from '../core/EventBus.js';
 import { StepNavigator } from './StepNavigator.js';
+import { StateBasedEngine } from '../visual/VisualEngine.js';
+import { CanvasRenderer } from '../visual/CanvasRenderer.js';
+import { VideoExporter, downloadVideo, createProgressUI } from '../visual/VideoExporter.js';
 
 /**
  * VisualBlock manager - handles multiple visual blocks
  */
 const visualBlocks = new Map();
 
+/**
+ * Default resolution settings
+ */
+const RESOLUTION = {
+    PREVIEW: 0.5,  // 1920x1200 for smooth UI
+    EXPORT: 1.0    // 3840x2400 for 4K output
+};
+
 export const VisualBlock = {
     /**
-     * Initialize a VisualBlock instance
+     * Initialize a VisualBlock instance with state-based animation
      * @param {Object} config
      * @param {HTMLElement} config.container - Container element
      * @param {string} config.visualId - Visual identifier
-     * @param {Object} [config.composition] - Composition instance
-     * @param {number} [config.totalSteps=1] - Number of steps
-     * @param {string} [config.renderer='svg'] - Renderer type ('svg' or 'canvas')
+     * @param {Object} config.scene - Scene definition
+     * @param {number} [config.totalSteps] - Number of steps (auto-detected from scene)
+     * @param {boolean} [config.useCanvas=true] - Use canvas renderer
      * @returns {Object} VisualBlock instance
      */
     init(config) {
+        const scene = config.scene;
+        const totalSteps = config.totalSteps || scene?.steps?.length || 1;
+
         const instance = {
             container: config.container,
             visualId: config.visualId,
-            composition: config.composition,
+            scene: scene,
             state: {
                 currentStep: 1,
-                totalSteps: config.totalSteps || 1,
-                renderer: config.renderer || 'svg'
+                totalSteps: totalSteps,
+                isAnimating: false,
+                isExporting: false
             },
             elements: {},
-            stepNavigator: null
+            engine: null,
+            renderer: null,
+            stepNavigator: null,
+            animationFrame: null
         };
 
-        // Cache animation container
-        instance.elements.animationContainer = config.container.querySelector('.animation-container') ||
-            config.container.querySelector(`#${config.visualId}-container`);
+        // Create canvas element
+        this._createCanvas(instance);
+
+        // Initialize engine and renderer
+        this._initEngine(instance);
 
         // Initialize step navigator if multi-step
-        if (instance.state.totalSteps > 1) {
-            const navContainer = config.container.querySelector('.step-navigation') ||
-                config.container.querySelector(`[data-visual-nav="${config.visualId}"]`);
-
-            if (navContainer) {
-                instance.stepNavigator = StepNavigator.init({
-                    container: navContainer,
-                    visualId: config.visualId,
-                    totalSteps: instance.state.totalSteps,
-                    initialStep: 1,
-                    onStepChange: (step) => {
-                        this.renderStep(config.visualId, step);
-                    }
-                });
-            }
+        if (totalSteps > 1) {
+            this._initStepNavigator(instance);
         }
 
         // Bind export button events
@@ -64,10 +77,142 @@ export const VisualBlock = {
         // Store instance
         visualBlocks.set(config.visualId, instance);
 
-        // Render initial step
-        this.renderStep(config.visualId, 1);
+        // Start animation loop
+        this._startAnimationLoop(instance);
 
         return instance;
+    },
+
+    /**
+     * Create canvas element
+     * @private
+     */
+    _createCanvas(instance) {
+        const container = instance.container.querySelector('.animation-container') ||
+            instance.container.querySelector(`#${instance.visualId}-container`) ||
+            instance.container;
+
+        // Create canvas wrapper with aspect ratio
+        let wrapper = container.querySelector('.visual-canvas-wrapper');
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.className = 'visual-canvas-wrapper';
+            wrapper.style.cssText = `
+                aspect-ratio: 16 / 10;
+                width: 100%;
+                max-width: 100%;
+                position: relative;
+                overflow: hidden;
+                background: transparent;
+            `;
+            container.appendChild(wrapper);
+        }
+
+        // Create canvas
+        let canvas = wrapper.querySelector('canvas.visual-canvas');
+        if (!canvas) {
+            canvas = document.createElement('canvas');
+            canvas.className = 'visual-canvas';
+            canvas.style.cssText = `
+                width: 100%;
+                height: 100%;
+                display: block;
+            `;
+            wrapper.appendChild(canvas);
+        }
+
+        instance.elements.wrapper = wrapper;
+        instance.elements.canvas = canvas;
+        instance.elements.animationContainer = container;
+    },
+
+    /**
+     * Initialize engine and renderer
+     * @private
+     */
+    _initEngine(instance) {
+        const canvas = instance.elements.canvas;
+
+        // Create renderer with preview resolution
+        instance.renderer = new CanvasRenderer(canvas, {
+            scale: RESOLUTION.PREVIEW,
+            depthOfField: true
+        });
+
+        // Create engine
+        instance.engine = new StateBasedEngine({
+            width: 3840,
+            height: 2400,
+            fps: 60
+        });
+
+        // Link engine to renderer
+        instance.renderer.setEngine(instance.engine);
+
+        // Load scene
+        if (instance.scene) {
+            instance.engine.loadScene(instance.scene);
+        }
+
+        // Set up callbacks
+        instance.engine.onStepChange = (stepIndex, step) => {
+            instance.state.currentStep = stepIndex + 1;
+            instance.state.isAnimating = false;
+
+            EventBus.emit(Events.VISUAL_STEP_RENDERED, {
+                visualId: instance.visualId,
+                step: stepIndex + 1
+            });
+        };
+    },
+
+    /**
+     * Initialize step navigator
+     * @private
+     */
+    _initStepNavigator(instance) {
+        const navContainer = instance.container.querySelector('.step-navigation') ||
+            instance.container.querySelector(`[data-visual-nav="${instance.visualId}"]`);
+
+        if (navContainer) {
+            instance.stepNavigator = StepNavigator.init({
+                container: navContainer,
+                visualId: instance.visualId,
+                totalSteps: instance.state.totalSteps,
+                initialStep: 1,
+                onStepChange: (step) => {
+                    this.gotoStep(instance.visualId, step);
+                }
+            });
+        }
+    },
+
+    /**
+     * Start animation loop
+     * @private
+     */
+    _startAnimationLoop(instance) {
+        let lastTime = performance.now();
+
+        const loop = (currentTime) => {
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            // Update engine
+            if (instance.engine) {
+                instance.engine.update(deltaTime);
+
+                // Render current state
+                const objects = instance.engine.getCurrentState();
+                instance.renderer.render(objects, {
+                    background: instance.scene?.background
+                });
+            }
+
+            instance.animationFrame = requestAnimationFrame(loop);
+        };
+
+        instance.animationFrame = requestAnimationFrame(loop);
     },
 
     /**
@@ -75,41 +220,168 @@ export const VisualBlock = {
      * @private
      */
     _bindExportEvents(instance) {
-        const exportButtons = instance.container.querySelectorAll('[data-export-visual]');
-        exportButtons.forEach(btn => {
+        // PNG export
+        const pngButtons = instance.container.querySelectorAll('[data-export-visual="png"]');
+        pngButtons.forEach(btn => {
             btn.addEventListener('click', () => {
-                const format = btn.dataset.exportVisual;
-                this.exportFrame(instance.visualId, instance.state.currentStep, format);
+                this.exportPNG(instance.visualId);
+            });
+        });
+
+        // SVG export (not supported with canvas renderer)
+        const svgButtons = instance.container.querySelectorAll('[data-export-visual="svg"]');
+        svgButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                console.warn('SVG export not available with canvas renderer');
+            });
+        });
+
+        // Video export
+        const videoButtons = instance.container.querySelectorAll('[data-export-visual="video"]');
+        videoButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.exportVideo(instance.visualId);
             });
         });
     },
 
+    // ==========================================================================
+    // PUBLIC API
+    // ==========================================================================
+
     /**
-     * Render a specific step
+     * Navigate to a specific step
      * @param {string} visualId
-     * @param {number} stepNumber
+     * @param {number} stepNumber - 1-indexed step number
+     * @param {number} [duration] - Transition duration in ms
      */
-    renderStep(visualId, stepNumber) {
+    gotoStep(visualId, stepNumber, duration) {
         const instance = visualBlocks.get(visualId);
-        if (!instance) return;
+        if (!instance?.engine) return;
 
-        instance.state.currentStep = stepNumber;
+        instance.state.isAnimating = true;
+        instance.engine.gotoStep(stepNumber - 1, duration);
 
-        // If we have a composition, use the visual engine
-        if (instance.composition) {
-            this._renderCompositionStep(instance, stepNumber);
-        } else {
-            // Fallback: use built-in step visualization
-            this._renderBuiltinStep(instance, stepNumber);
+        // Update sync highlights
+        this._updateSyncHighlights(visualId, stepNumber);
+    },
+
+    /**
+     * Go to next step
+     * @param {string} visualId
+     */
+    nextStep(visualId) {
+        const instance = visualBlocks.get(visualId);
+        if (!instance?.engine) return;
+
+        if (instance.state.currentStep < instance.state.totalSteps) {
+            this.gotoStep(visualId, instance.state.currentStep + 1);
+        }
+    },
+
+    /**
+     * Go to previous step
+     * @param {string} visualId
+     */
+    prevStep(visualId) {
+        const instance = visualBlocks.get(visualId);
+        if (!instance?.engine) return;
+
+        if (instance.state.currentStep > 1) {
+            this.gotoStep(visualId, instance.state.currentStep - 1);
+        }
+    },
+
+    /**
+     * Export current step as PNG at 4K resolution
+     * @param {string} visualId
+     */
+    async exportPNG(visualId) {
+        const instance = visualBlocks.get(visualId);
+        if (!instance?.engine) return;
+
+        EventBus.emit(Events.VISUAL_EXPORT_STARTED, { format: 'png', count: 1 });
+
+        try {
+            // Create temporary 4K canvas
+            const exportCanvas = document.createElement('canvas');
+            const exportRenderer = new CanvasRenderer(exportCanvas, { scale: RESOLUTION.EXPORT });
+            exportRenderer.setEngine(instance.engine);
+
+            // Render current state at full resolution
+            const objects = instance.engine.getCurrentState();
+            exportRenderer.render(objects, { background: instance.scene?.background });
+
+            // Download as PNG
+            const blob = await exportRenderer.toPNG();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${visualId}-step-${instance.state.currentStep}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            EventBus.emit(Events.VISUAL_EXPORT_COMPLETE, { format: 'png', files: 1 });
+        } catch (error) {
+            console.error('PNG export failed:', error);
+        }
+    },
+
+    /**
+     * Export full animation as video
+     * @param {string} visualId
+     */
+    async exportVideo(visualId) {
+        const instance = visualBlocks.get(visualId);
+        if (!instance?.scene) {
+            console.warn('No scene loaded for video export');
+            return;
         }
 
-        // Update script sync highlights
-        this._updateSyncHighlights(visualId, stepNumber);
+        if (instance.state.isExporting) {
+            console.warn('Export already in progress');
+            return;
+        }
 
-        EventBus.emit(Events.VISUAL_STEP_RENDERED, {
-            visualId,
-            step: stepNumber
-        });
+        instance.state.isExporting = true;
+        EventBus.emit(Events.VISUAL_EXPORT_STARTED, { format: 'video', count: 1 });
+
+        // Create progress UI
+        const progressUI = createProgressUI(document.body);
+
+        try {
+            const exporter = new VideoExporter({
+                width: 3840,
+                height: 2400,
+                fps: 60
+            });
+
+            // Set up cancel handler
+            progressUI.onCancel(() => {
+                exporter.cancel();
+                instance.state.isExporting = false;
+                progressUI.hide();
+            });
+
+            // Export video with progress
+            const blob = await exporter.renderVideo(instance.scene, {
+                onProgress: (current, total) => {
+                    progressUI.update(current, total);
+                },
+                holdFrames: 30 // Hold each step for 0.5 seconds at 60fps
+            });
+
+            // Download video
+            downloadVideo(blob, `${visualId}-animation.webm`);
+
+            EventBus.emit(Events.VISUAL_EXPORT_COMPLETE, { format: 'video', files: 1 });
+
+        } catch (error) {
+            console.error('Video export failed:', error);
+        } finally {
+            instance.state.isExporting = false;
+            progressUI.hide();
+        }
     },
 
     /**
@@ -117,402 +389,22 @@ export const VisualBlock = {
      * @private
      */
     _updateSyncHighlights(visualId, stepNumber) {
-        // Find script text element that matches this visual
         const scriptText = document.querySelector(`[data-visual-id="${visualId}"]`);
         if (!scriptText) return;
 
-        // Remove active class from all highlights
         scriptText.querySelectorAll('.sync-highlight').forEach(el => {
             el.classList.remove('active');
         });
 
-        // Add active class to current step's highlight
         const activeHighlight = scriptText.querySelector(`[data-sync-step="${stepNumber}"]`);
         if (activeHighlight) {
             activeHighlight.classList.add('active');
-            // Scroll highlight into view within the script container
             activeHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     },
 
     /**
-     * Render composition step using visual engine
-     * @private
-     */
-    _renderCompositionStep(instance, stepNumber) {
-        const { composition, elements } = instance;
-        if (!composition || !elements.animationContainer) return;
-
-        // Calculate frame index from step number
-        const framesPerStep = Math.floor(composition.durationInFrames / instance.state.totalSteps);
-        const frameIndex = (stepNumber - 1) * framesPerStep;
-
-        // Get frame state and render
-        try {
-            const frameState = composition.getFrameState(frameIndex);
-            this._renderFrameState(elements.animationContainer, frameState, instance.state.renderer);
-        } catch (error) {
-            console.error(`VisualBlock: Error rendering step ${stepNumber}:`, error);
-        }
-    },
-
-    /**
-     * Render built-in step visualization (for simple step reveals)
-     * @private
-     */
-    _renderBuiltinStep(instance, stepNumber) {
-        const container = instance.elements.animationContainer;
-        if (!container) return;
-
-        // Find step elements (by ID pattern like "hookStep1", "hookStep2", etc.)
-        const stepElements = container.querySelectorAll('[id*="Step"]');
-
-        stepElements.forEach((el, index) => {
-            const stepIndex = index + 1;
-            if (stepIndex <= stepNumber) {
-                el.style.opacity = '1';
-                el.style.transform = 'translateX(0)';
-                if (el.classList.contains('killer-card')) {
-                    el.classList.add('visible');
-                }
-            } else {
-                el.style.opacity = '0';
-                if (el.classList.contains('killer-card')) {
-                    el.classList.remove('visible');
-                }
-            }
-        });
-    },
-
-    /**
-     * Render frame state to container
-     * @private
-     */
-    _renderFrameState(container, frameState, rendererType) {
-        if (rendererType === 'svg') {
-            this._renderSVG(container, frameState);
-        } else if (rendererType === 'canvas') {
-            this._renderCanvas(container, frameState);
-        }
-    },
-
-    /**
-     * Render frame state as SVG
-     * @private
-     */
-    _renderSVG(container, frameState) {
-        let svg = container.querySelector('svg.visual-svg');
-        if (!svg) {
-            svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('class', 'visual-svg');
-            svg.style.width = '100%';
-            svg.style.height = '100%';
-            container.innerHTML = '';
-            container.appendChild(svg);
-        }
-
-        // Clear existing content
-        svg.innerHTML = '';
-
-        // Set viewBox from composition if available
-        if (frameState.width && frameState.height) {
-            svg.setAttribute('viewBox', `0 0 ${frameState.width} ${frameState.height}`);
-        }
-
-        // Render each layer
-        if (frameState.layers) {
-            frameState.layers.forEach(layer => {
-                const element = this._createSVGElement(layer);
-                if (element) {
-                    svg.appendChild(element);
-                }
-            });
-        }
-    },
-
-    /**
-     * Create SVG element from layer state
-     * @private
-     */
-    _createSVGElement(layer) {
-        let element;
-
-        switch (layer.type) {
-            case 'rect':
-                element = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                element.setAttribute('x', layer.x || 0);
-                element.setAttribute('y', layer.y || 0);
-                element.setAttribute('width', layer.width || 100);
-                element.setAttribute('height', layer.height || 100);
-                break;
-
-            case 'circle':
-                element = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                element.setAttribute('cx', layer.cx || layer.x || 0);
-                element.setAttribute('cy', layer.cy || layer.y || 0);
-                element.setAttribute('r', layer.r || layer.radius || 50);
-                break;
-
-            case 'text':
-                element = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                element.setAttribute('x', layer.x || 0);
-                element.setAttribute('y', layer.y || 0);
-                element.textContent = layer.text || '';
-                if (layer.fontSize) {
-                    element.setAttribute('font-size', layer.fontSize);
-                }
-                if (layer.fontFamily) {
-                    element.setAttribute('font-family', layer.fontFamily);
-                }
-                if (layer.textAnchor) {
-                    element.setAttribute('text-anchor', layer.textAnchor);
-                }
-                break;
-
-            case 'path':
-                element = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                element.setAttribute('d', layer.d || '');
-                break;
-
-            case 'line':
-                element = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                element.setAttribute('x1', layer.x1 || 0);
-                element.setAttribute('y1', layer.y1 || 0);
-                element.setAttribute('x2', layer.x2 || 100);
-                element.setAttribute('y2', layer.y2 || 100);
-                break;
-
-            default:
-                return null;
-        }
-
-        // Apply common attributes
-        if (layer.fill) element.setAttribute('fill', layer.fill);
-        if (layer.stroke) element.setAttribute('stroke', layer.stroke);
-        if (layer.strokeWidth) element.setAttribute('stroke-width', layer.strokeWidth);
-        if (layer.opacity !== undefined) element.setAttribute('opacity', layer.opacity);
-        if (layer.transform) element.setAttribute('transform', layer.transform);
-
-        return element;
-    },
-
-    /**
-     * Render frame state to canvas
-     * @private
-     */
-    _renderCanvas(container, frameState) {
-        let canvas = container.querySelector('canvas.visual-canvas');
-        if (!canvas) {
-            canvas = document.createElement('canvas');
-            canvas.className = 'visual-canvas';
-            canvas.width = frameState.width || 800;
-            canvas.height = frameState.height || 600;
-            container.innerHTML = '';
-            container.appendChild(canvas);
-        }
-
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Render each layer
-        if (frameState.layers) {
-            frameState.layers.forEach(layer => {
-                this._renderCanvasLayer(ctx, layer);
-            });
-        }
-    },
-
-    /**
-     * Render a layer to canvas context
-     * @private
-     */
-    _renderCanvasLayer(ctx, layer) {
-        ctx.save();
-
-        if (layer.opacity !== undefined) {
-            ctx.globalAlpha = layer.opacity;
-        }
-
-        switch (layer.type) {
-            case 'rect':
-                if (layer.fill) {
-                    ctx.fillStyle = layer.fill;
-                    ctx.fillRect(layer.x || 0, layer.y || 0, layer.width || 100, layer.height || 100);
-                }
-                if (layer.stroke) {
-                    ctx.strokeStyle = layer.stroke;
-                    ctx.lineWidth = layer.strokeWidth || 1;
-                    ctx.strokeRect(layer.x || 0, layer.y || 0, layer.width || 100, layer.height || 100);
-                }
-                break;
-
-            case 'circle':
-                ctx.beginPath();
-                ctx.arc(layer.cx || layer.x || 0, layer.cy || layer.y || 0, layer.r || layer.radius || 50, 0, Math.PI * 2);
-                if (layer.fill) {
-                    ctx.fillStyle = layer.fill;
-                    ctx.fill();
-                }
-                if (layer.stroke) {
-                    ctx.strokeStyle = layer.stroke;
-                    ctx.lineWidth = layer.strokeWidth || 1;
-                    ctx.stroke();
-                }
-                break;
-
-            case 'text':
-                ctx.font = `${layer.fontSize || 16}px ${layer.fontFamily || 'sans-serif'}`;
-                ctx.textAlign = layer.textAnchor || 'start';
-                if (layer.fill) {
-                    ctx.fillStyle = layer.fill;
-                    ctx.fillText(layer.text || '', layer.x || 0, layer.y || 0);
-                }
-                break;
-        }
-
-        ctx.restore();
-    },
-
-    /**
-     * Export current frame as image
-     * @param {string} visualId
-     * @param {number} stepNumber
-     * @param {string} format - 'png' or 'svg'
-     */
-    async exportFrame(visualId, stepNumber, format = 'png') {
-        const instance = visualBlocks.get(visualId);
-        if (!instance) return;
-
-        EventBus.emit(Events.VISUAL_EXPORT_STARTED, { format, count: 1 });
-
-        try {
-            if (format === 'svg') {
-                this._exportSVG(instance, stepNumber);
-            } else {
-                await this._exportPNG(instance, stepNumber);
-            }
-
-            EventBus.emit(Events.VISUAL_EXPORT_COMPLETE, { format, files: 1 });
-        } catch (error) {
-            console.error('VisualBlock: Export failed:', error);
-        }
-    },
-
-    /**
-     * Export as SVG
-     * @private
-     */
-    _exportSVG(instance, stepNumber) {
-        const svg = instance.elements.animationContainer?.querySelector('svg');
-        if (!svg) {
-            console.warn('VisualBlock: No SVG element found');
-            return;
-        }
-
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const blob = new Blob([svgData], { type: 'image/svg+xml' });
-        this._downloadBlob(blob, `${instance.visualId}-step-${stepNumber}.svg`);
-    },
-
-    /**
-     * Export as PNG
-     * @private
-     */
-    async _exportPNG(instance, stepNumber) {
-        const container = instance.elements.animationContainer;
-        if (!container) return;
-
-        // Check for html2canvas
-        if (typeof html2canvas !== 'undefined') {
-            const canvas = await html2canvas(container);
-            canvas.toBlob(blob => {
-                this._downloadBlob(blob, `${instance.visualId}-step-${stepNumber}.png`);
-            });
-        } else {
-            // Fallback: try to convert SVG to PNG
-            const svg = container.querySelector('svg');
-            if (svg) {
-                await this._svgToPNG(svg, `${instance.visualId}-step-${stepNumber}.png`);
-            } else {
-                console.warn('VisualBlock: html2canvas not available for PNG export');
-            }
-        }
-    },
-
-    /**
-     * Convert SVG to PNG at 4K resolution with transparent background
-     * @private
-     */
-    async _svgToPNG(svg, filename) {
-        // 4K resolution
-        const OUTPUT_WIDTH = 3840;
-        const OUTPUT_HEIGHT = 2160;
-
-        // Get SVG dimensions
-        const viewBox = svg.getAttribute('viewBox');
-        let svgWidth = 800, svgHeight = 600;
-        if (viewBox) {
-            const parts = viewBox.split(' ');
-            svgWidth = parseFloat(parts[2]) || 800;
-            svgHeight = parseFloat(parts[3]) || 600;
-        } else {
-            svgWidth = svg.clientWidth || svg.getAttribute('width') || 800;
-            svgHeight = svg.clientHeight || svg.getAttribute('height') || 600;
-        }
-
-        // Clone SVG and set explicit dimensions for 4K export
-        const svgClone = svg.cloneNode(true);
-        svgClone.setAttribute('width', OUTPUT_WIDTH);
-        svgClone.setAttribute('height', OUTPUT_HEIGHT);
-
-        const svgData = new XMLSerializer().serializeToString(svgClone);
-        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
-
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = OUTPUT_WIDTH;
-                canvas.height = OUTPUT_HEIGHT;
-
-                const ctx = canvas.getContext('2d');
-                // Transparent background - do NOT fill with white
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
-
-                canvas.toBlob(blob => {
-                    this._downloadBlob(blob, filename);
-                    URL.revokeObjectURL(url);
-                    resolve();
-                }, 'image/png');
-            };
-            img.onerror = () => {
-                URL.revokeObjectURL(url);
-                console.error('VisualBlock: Failed to load SVG for PNG export');
-                resolve();
-            };
-            img.src = url;
-        });
-    },
-
-    /**
-     * Download a blob
-     * @private
-     */
-    _downloadBlob(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    },
-
-    /**
-     * Get current step
+     * Get current step number
      * @param {string} visualId
      * @returns {number}
      */
@@ -522,17 +414,48 @@ export const VisualBlock = {
     },
 
     /**
+     * Get engine instance
+     * @param {string} visualId
+     * @returns {StateBasedEngine|null}
+     */
+    getEngine(visualId) {
+        const instance = visualBlocks.get(visualId);
+        return instance?.engine || null;
+    },
+
+    /**
+     * Update scene definition
+     * @param {string} visualId
+     * @param {Object} scene - New scene definition
+     */
+    updateScene(visualId, scene) {
+        const instance = visualBlocks.get(visualId);
+        if (!instance?.engine) return;
+
+        instance.scene = scene;
+        instance.state.totalSteps = scene.steps?.length || 1;
+        instance.engine.loadScene(scene);
+    },
+
+    /**
      * Destroy a visual block instance
      * @param {string} visualId
      */
     destroy(visualId) {
         const instance = visualBlocks.get(visualId);
-        if (instance) {
-            if (instance.stepNavigator) {
-                StepNavigator.destroy(visualId);
-            }
-            visualBlocks.delete(visualId);
+        if (!instance) return;
+
+        // Cancel animation loop
+        if (instance.animationFrame) {
+            cancelAnimationFrame(instance.animationFrame);
         }
+
+        // Destroy step navigator
+        if (instance.stepNavigator) {
+            StepNavigator.destroy(visualId);
+        }
+
+        visualBlocks.delete(visualId);
     },
 
     /**

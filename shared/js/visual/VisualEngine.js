@@ -1,423 +1,736 @@
 /**
- * VisualEngine - Core Animation System
+ * VisualEngine - State-Based Animation System
  * Lesson Builder System
  * 
- * Remotion-like frame-based animation engine for creating
- * data-driven visual compositions.
+ * Declarative state-based animation engine for 4K video generation.
+ * Scene → Step → Objects model with automatic property interpolation.
  */
 
-import { lerp, easeInOutCubic, easeOutQuad, easeInQuad } from '../utils/animation.js';
+import { lerp, getEasing, easeInOutCubic } from '../utils/animation.js';
+
+// ==========================================================================
+// DEFAULT PROPERTY VALUES
+// ==========================================================================
 
 /**
- * Composition - Defines a visual scene with layers
+ * Default values for object properties.
+ * Used when a property is missing in one step but present in another.
  */
-export class Composition {
+export const DEFAULTS = {
+    x: 0,
+    y: 0,
+    z: 0,
+    width: 100,
+    height: 100,
+    opacity: 1,
+    scale: 1,
+    rotation: 0,
+    fill: '#000000',
+    stroke: 'transparent',
+    strokeWidth: 1,
+    fontSize: 16,
+    rx: 0,
+    ry: 0
+};
+
+// ==========================================================================
+// STATE-BASED ENGINE
+// ==========================================================================
+
+/**
+ * StateBasedEngine - Core animation engine using Scene → Step → Objects model
+ */
+export class StateBasedEngine {
     /**
-     * Create a new composition
-     * @param {Object} config
-     * @param {number} config.width - Canvas width in pixels
-     * @param {number} config.height - Canvas height in pixels
-     * @param {number} [config.fps=60] - Frames per second
-     * @param {number} config.durationInFrames - Total frames
+     * Create a new StateBasedEngine
+     * @param {Object} options
+     * @param {number} [options.width=3840] - Canvas width in pixels
+     * @param {number} [options.height=2400] - Canvas height in pixels
+     * @param {number} [options.fps=60] - Frames per second
      */
-    constructor(config) {
-        this.width = config.width || 800;
-        this.height = config.height || 600;
-        this.fps = config.fps || 60;
-        this.durationInFrames = config.durationInFrames || 60;
-        this.layers = [];
-        this.background = config.background || '#ffffff';
+    constructor(options = {}) {
+        this.width = options.width || 3840;
+        this.height = options.height || 2400;
+        this.fps = options.fps || 60;
+
+        this.scene = null;
+        this.currentStepIndex = -1;
+        this.targetStepIndex = -1;
+
+        // Animation state
+        this.isAnimating = false;
+        this.animationProgress = 0;
+        this.animationDuration = 1000;
+        this.easingFn = easeInOutCubic;
+
+        // Current interpolated state (object ID -> properties)
+        this.currentState = new Map();
+
+        // Previous step state for interpolation
+        this.previousState = new Map();
+
+        // Objects being faded in/out
+        this.fadingIn = new Set();
+        this.fadingOut = new Map(); // ID -> last known state
+
+        // Callbacks
+        this.onStepChange = null;
+        this.onAnimationComplete = null;
     }
 
-    /**
-     * Add a layer to the composition
-     * @param {Layer} layer
-     * @returns {Composition} this (for chaining)
-     */
-    addLayer(layer) {
-        this.layers.push(layer);
-        return this;
-    }
+    // ==========================================================================
+    // SCENE MANAGEMENT
+    // ==========================================================================
 
     /**
-     * Remove a layer by ID
-     * @param {string} layerId
-     * @returns {boolean} Whether layer was found and removed
+     * Load a scene definition
+     * @param {Object} scene - Scene definition with steps array
      */
-    removeLayer(layerId) {
-        const index = this.layers.findIndex(l => l.id === layerId);
-        if (index > -1) {
-            this.layers.splice(index, 1);
-            return true;
+    loadScene(scene) {
+        this.scene = scene;
+        this.currentStepIndex = -1;
+        this.targetStepIndex = -1;
+        this.currentState.clear();
+        this.previousState.clear();
+        this.fadingIn.clear();
+        this.fadingOut.clear();
+        this.isAnimating = false;
+
+        // Go to first step immediately
+        if (scene.steps && scene.steps.length > 0) {
+            this.gotoStep(0, 0);
         }
-        return false;
     }
 
     /**
-     * Get a layer by ID
-     * @param {string} layerId
-     * @returns {Layer|undefined}
+     * Get step by ID or index
+     * @param {string|number} stepIdOrIndex
+     * @returns {Object|null}
      */
-    getLayer(layerId) {
-        return this.layers.find(l => l.id === layerId);
+    getStep(stepIdOrIndex) {
+        if (!this.scene?.steps) return null;
+
+        if (typeof stepIdOrIndex === 'number') {
+            return this.scene.steps[stepIdOrIndex] || null;
+        }
+
+        return this.scene.steps.find(s => s.id === stepIdOrIndex) || null;
     }
 
     /**
-     * Get the state of all layers at a specific frame
-     * @param {number} frameIndex - Frame number (0-indexed)
-     * @returns {Object} Frame state with all layer states
-     */
-    getFrameState(frameIndex) {
-        // Clamp frame index
-        const frame = Math.max(0, Math.min(frameIndex, this.durationInFrames - 1));
-
-        return {
-            frame,
-            width: this.width,
-            height: this.height,
-            background: this.background,
-            layers: this.layers.map(layer => ({
-                id: layer.id,
-                type: layer.type,
-                ...layer.getStateAtFrame(frame)
-            }))
-        };
-    }
-
-    /**
-     * Get duration in seconds
+     * Get step index by ID
+     * @param {string} stepId
      * @returns {number}
      */
-    getDuration() {
-        return this.durationInFrames / this.fps;
+    getStepIndex(stepId) {
+        if (!this.scene?.steps) return -1;
+        return this.scene.steps.findIndex(s => s.id === stepId);
     }
 
     /**
-     * Get frame count for a duration in seconds
-     * @param {number} seconds
+     * Get total number of steps
      * @returns {number}
      */
-    secondsToFrames(seconds) {
-        return Math.round(seconds * this.fps);
+    getStepCount() {
+        return this.scene?.steps?.length || 0;
     }
 
-    /**
-     * Get time in seconds for a frame
-     * @param {number} frame
-     * @returns {number}
-     */
-    frameToSeconds(frame) {
-        return frame / this.fps;
-    }
+    // ==========================================================================
+    // STEP TRANSITIONS
+    // ==========================================================================
 
     /**
-     * Clone this composition
-     * @returns {Composition}
+     * Transition to a specific step
+     * @param {string|number} stepIdOrIndex - Step ID or index
+     * @param {number} [duration] - Transition duration in ms (0 for instant)
+     * @param {string|Function} [easing='easeInOutCubic'] - Easing function
      */
-    clone() {
-        const comp = new Composition({
-            width: this.width,
-            height: this.height,
-            fps: this.fps,
-            durationInFrames: this.durationInFrames,
-            background: this.background
-        });
+    gotoStep(stepIdOrIndex, duration, easing = 'easeInOutCubic') {
+        const targetIndex = typeof stepIdOrIndex === 'number'
+            ? stepIdOrIndex
+            : this.getStepIndex(stepIdOrIndex);
 
-        this.layers.forEach(layer => {
-            comp.addLayer(layer.clone());
-        });
+        if (targetIndex < 0 || targetIndex >= this.getStepCount()) {
+            console.warn(`StateBasedEngine: Invalid step: ${stepIdOrIndex}`);
+            return;
+        }
 
-        return comp;
-    }
-}
+        const step = this.scene.steps[targetIndex];
+        const stepDuration = duration ?? step.duration ?? this.scene.duration ?? 1000;
 
-/**
- * Layer - Individual animated element
- */
-export class Layer {
-    /**
-     * Create a new layer
-     * @param {Object} config
-     * @param {string} config.id - Unique identifier
-     * @param {string} config.type - 'rect' | 'circle' | 'text' | 'path' | 'line' | 'image'
-     * @param {Array} [config.keyframes] - Array of {frame, value} pairs
-     * @param {Function} [config.easing] - Easing function
-     */
-    constructor(config) {
-        this.id = config.id || `layer-${Date.now()}`;
-        this.type = config.type || 'rect';
-        this.keyframes = config.keyframes || [];
-        this.easing = config.easing || easeInOutCubic;
+        // Store previous state for interpolation
+        this.previousState = new Map(this.currentState);
 
-        // Sort keyframes by frame
-        this._sortKeyframes();
-    }
+        // Build target state from step objects
+        const targetState = this._buildStateFromStep(step);
 
-    /**
-     * Sort keyframes by frame number
-     * @private
-     */
-    _sortKeyframes() {
-        this.keyframes.sort((a, b) => a.frame - b.frame);
-    }
+        // Detect new and removed objects
+        this._detectObjectChanges(targetState);
 
-    /**
-     * Add a keyframe
-     * @param {number} frame - Frame number
-     * @param {Object} value - Property values at this frame
-     * @returns {Layer} this (for chaining)
-     */
-    addKeyframe(frame, value) {
-        // Check if keyframe exists at this frame
-        const existing = this.keyframes.find(k => k.frame === frame);
-        if (existing) {
-            existing.value = { ...existing.value, ...value };
+        this.targetStepIndex = targetIndex;
+        this.animationDuration = stepDuration;
+        this.easingFn = typeof easing === 'function' ? easing : getEasing(easing);
+
+        if (stepDuration === 0) {
+            // Instant transition
+            this.currentState = targetState;
+            this.currentStepIndex = targetIndex;
+            this.isAnimating = false;
+            this.animationProgress = 1;
+            this.fadingIn.clear();
+            this.fadingOut.clear();
+
+            if (this.onStepChange) {
+                this.onStepChange(targetIndex, step);
+            }
         } else {
-            this.keyframes.push({ frame, value });
-            this._sortKeyframes();
+            // Animated transition
+            this.isAnimating = true;
+            this.animationProgress = 0;
+            this._targetState = targetState;
         }
-        return this;
     }
 
     /**
-     * Remove a keyframe
-     * @param {number} frame
-     * @returns {boolean}
+     * Go to next step
+     * @param {number} [duration] - Transition duration
      */
-    removeKeyframe(frame) {
-        const index = this.keyframes.findIndex(k => k.frame === frame);
-        if (index > -1) {
-            this.keyframes.splice(index, 1);
-            return true;
+    nextStep(duration) {
+        if (this.currentStepIndex < this.getStepCount() - 1) {
+            this.gotoStep(this.currentStepIndex + 1, duration);
         }
-        return false;
     }
 
     /**
-     * Set easing function
-     * @param {Function} easingFn
-     * @returns {Layer} this
+     * Go to previous step
+     * @param {number} [duration] - Transition duration
      */
-    setEasing(easingFn) {
-        this.easing = easingFn;
-        return this;
+    prevStep(duration) {
+        if (this.currentStepIndex > 0) {
+            this.gotoStep(this.currentStepIndex - 1, duration);
+        }
     }
 
     /**
-     * Get the interpolated state at a specific frame
-     * @param {number} frameIndex
-     * @returns {Object} Interpolated property values
+     * Seek to a specific frame (for video export)
+     * @param {number} frame - Frame number
      */
-    getStateAtFrame(frameIndex) {
-        if (this.keyframes.length === 0) {
-            return {};
-        }
+    seekToFrame(frame) {
+        const totalFrames = this.getTotalFrames();
+        if (frame < 0 || frame >= totalFrames) return;
 
-        if (this.keyframes.length === 1) {
-            return { ...this.keyframes[0].value };
-        }
+        // Calculate which step and progress within step
+        let frameCount = 0;
+        for (let i = 0; i < this.scene.steps.length; i++) {
+            const step = this.scene.steps[i];
+            const stepDuration = step.duration ?? this.scene.duration ?? 1000;
+            const stepFrames = Math.ceil((stepDuration / 1000) * this.fps);
 
-        // Find surrounding keyframes
-        let prevKeyframe = this.keyframes[0];
-        let nextKeyframe = this.keyframes[this.keyframes.length - 1];
+            if (frame < frameCount + stepFrames) {
+                // Frame is within this step's transition
+                const progress = (frame - frameCount) / stepFrames;
 
-        for (let i = 0; i < this.keyframes.length; i++) {
-            if (this.keyframes[i].frame <= frameIndex) {
-                prevKeyframe = this.keyframes[i];
+                if (this.currentStepIndex !== i) {
+                    // Need to set up transition to this step
+                    const prevIndex = Math.max(0, i - 1);
+                    this.previousState = this._buildStateFromStep(this.scene.steps[prevIndex]);
+                    this._targetState = this._buildStateFromStep(step);
+                    this._detectObjectChanges(this._targetState);
+                    this.currentStepIndex = prevIndex;
+                    this.targetStepIndex = i;
+                }
+
+                this.animationProgress = progress;
+                this._updateInterpolatedState();
+                return;
             }
-            if (this.keyframes[i].frame >= frameIndex) {
-                nextKeyframe = this.keyframes[i];
-                break;
-            }
+
+            frameCount += stepFrames;
         }
-
-        // If at or before first keyframe
-        if (frameIndex <= prevKeyframe.frame) {
-            return { ...prevKeyframe.value };
-        }
-
-        // If at or after last keyframe
-        if (frameIndex >= nextKeyframe.frame) {
-            return { ...nextKeyframe.value };
-        }
-
-        // Interpolate between keyframes
-        const progress = (frameIndex - prevKeyframe.frame) /
-            (nextKeyframe.frame - prevKeyframe.frame);
-        const easedProgress = this.easing(progress);
-
-        return this._interpolateValues(prevKeyframe.value, nextKeyframe.value, easedProgress);
     }
 
     /**
-     * Interpolate between two value objects
+     * Get total frames for the entire scene
+     * @returns {number}
+     */
+    getTotalFrames() {
+        if (!this.scene?.steps) return 0;
+
+        let totalMs = 0;
+        for (const step of this.scene.steps) {
+            totalMs += step.duration ?? this.scene.duration ?? 1000;
+        }
+
+        return Math.ceil((totalMs / 1000) * this.fps);
+    }
+
+    // ==========================================================================
+    // ANIMATION UPDATE
+    // ==========================================================================
+
+    /**
+     * Update animation state (call each frame)
+     * @param {number} deltaTime - Time since last update in ms
+     */
+    update(deltaTime) {
+        if (!this.isAnimating) return;
+
+        this.animationProgress += deltaTime / this.animationDuration;
+
+        if (this.animationProgress >= 1) {
+            // Animation complete
+            this.animationProgress = 1;
+            this.isAnimating = false;
+            this.currentState = this._targetState;
+            this.currentStepIndex = this.targetStepIndex;
+            this.fadingIn.clear();
+            this.fadingOut.clear();
+
+            if (this.onStepChange) {
+                this.onStepChange(this.currentStepIndex, this.scene.steps[this.currentStepIndex]);
+            }
+
+            if (this.onAnimationComplete) {
+                this.onAnimationComplete();
+            }
+        } else {
+            this._updateInterpolatedState();
+        }
+    }
+
+    /**
+     * Update interpolated state based on current progress
      * @private
-     * @param {Object} from
-     * @param {Object} to
-     * @param {number} t - Progress 0-1
-     * @returns {Object}
      */
-    _interpolateValues(from, to, t) {
+    _updateInterpolatedState() {
+        const easedProgress = this.easingFn(this.animationProgress);
+        const newState = new Map();
+
+        // Interpolate existing objects
+        for (const [id, targetProps] of this._targetState) {
+            const prevProps = this.previousState.get(id);
+
+            if (prevProps) {
+                // Object exists in both states - interpolate
+                newState.set(id, this._interpolateProps(prevProps, targetProps, easedProgress));
+            } else if (this.fadingIn.has(id)) {
+                // New object - fade in
+                const interpolated = { ...targetProps };
+                interpolated.opacity = lerp(0, targetProps.opacity ?? 1, easedProgress);
+                newState.set(id, interpolated);
+            }
+        }
+
+        // Handle fading out objects
+        for (const [id, lastProps] of this.fadingOut) {
+            const interpolated = { ...lastProps };
+            interpolated.opacity = lerp(lastProps.opacity ?? 1, 0, easedProgress);
+            newState.set(id, interpolated);
+        }
+
+        this.currentState = newState;
+    }
+
+    // ==========================================================================
+    // STATE BUILDING
+    // ==========================================================================
+
+    /**
+     * Build state map from step definition
+     * @private
+     * @param {Object} step
+     * @returns {Map<string, Object>}
+     */
+    _buildStateFromStep(step) {
+        const state = new Map();
+
+        if (!step?.objects) return state;
+
+        for (const obj of step.objects) {
+            const fullProps = this._buildObjectProps(obj);
+            state.set(obj.id, fullProps);
+
+            // Recursively add children for groups
+            if (obj.type === 'group' && obj.children) {
+                this._addChildrenToState(state, obj.id, obj.children, fullProps);
+            }
+        }
+
+        return state;
+    }
+
+    /**
+     * Build complete object properties with defaults
+     * @private
+     */
+    _buildObjectProps(obj) {
+        const props = { ...obj.props };
+        props._type = obj.type;
+        props._id = obj.id;
+
+        // Include children reference for groups
+        if (obj.children) {
+            props._children = obj.children;
+        }
+
+        return props;
+    }
+
+    /**
+     * Add group children to state (for flat rendering)
+     * @private
+     */
+    _addChildrenToState(state, parentId, children, parentProps) {
+        for (let i = 0; i < children.length; i++) {
+            const child = children[i];
+            const childId = child.id || `${parentId}_child_${i}`;
+            const childProps = {
+                ...child.props,
+                _type: child.type,
+                _id: childId,
+                _parentId: parentId,
+                _parentProps: parentProps
+            };
+            state.set(childId, childProps);
+
+            // Recurse for nested groups
+            if (child.type === 'group' && child.children) {
+                this._addChildrenToState(state, childId, child.children, childProps);
+            }
+        }
+    }
+
+    /**
+     * Detect new and removed objects between states
+     * @private
+     */
+    _detectObjectChanges(targetState) {
+        this.fadingIn.clear();
+        this.fadingOut.clear();
+
+        // Find new objects (in target but not in previous)
+        for (const id of targetState.keys()) {
+            if (!this.previousState.has(id)) {
+                this.fadingIn.add(id);
+            }
+        }
+
+        // Find removed objects (in previous but not in target)
+        for (const [id, props] of this.previousState) {
+            if (!targetState.has(id)) {
+                this.fadingOut.set(id, props);
+            }
+        }
+    }
+
+    // ==========================================================================
+    // INTERPOLATION
+    // ==========================================================================
+
+    /**
+     * Interpolate between two property objects
+     * @private
+     */
+    _interpolateProps(from, to, t) {
         const result = {};
         const allKeys = new Set([...Object.keys(from), ...Object.keys(to)]);
 
-        allKeys.forEach(key => {
-            const fromVal = from[key];
-            const toVal = to[key];
+        for (const key of allKeys) {
+            // Skip internal properties
+            if (key.startsWith('_')) {
+                result[key] = to[key] ?? from[key];
+                continue;
+            }
+
+            const fromVal = from[key] ?? DEFAULTS[key];
+            const toVal = to[key] ?? DEFAULTS[key];
+
+            if (fromVal === undefined && toVal === undefined) {
+                continue;
+            }
 
             if (fromVal === undefined) {
                 result[key] = toVal;
             } else if (toVal === undefined) {
                 result[key] = fromVal;
             } else if (typeof fromVal === 'number' && typeof toVal === 'number') {
-                // Numeric interpolation
                 result[key] = lerp(fromVal, toVal, t);
             } else if (typeof fromVal === 'string' && typeof toVal === 'string') {
-                // Color interpolation (if both are hex colors)
-                if (this._isHexColor(fromVal) && this._isHexColor(toVal)) {
+                if (this._isColor(fromVal) && this._isColor(toVal)) {
                     result[key] = this._interpolateColor(fromVal, toVal, t);
                 } else {
-                    // Non-numeric: use end value at t > 0.5
                     result[key] = t > 0.5 ? toVal : fromVal;
                 }
+            } else if (typeof fromVal === 'object' && typeof toVal === 'object') {
+                // Recursively interpolate nested objects (like shadow)
+                result[key] = this._interpolateProps(fromVal, toVal, t);
             } else {
-                // Default: snap at halfway
                 result[key] = t > 0.5 ? toVal : fromVal;
             }
-        });
+        }
 
         return result;
     }
 
     /**
-     * Check if string is a hex color
+     * Check if string is a color
      * @private
      */
-    _isHexColor(str) {
-        return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(str);
+    _isColor(str) {
+        return /^#([0-9A-Fa-f]{3,8})$/.test(str) ||
+            /^rgba?\(/.test(str) ||
+            /^hsla?\(/.test(str);
     }
 
     /**
-     * Interpolate between two hex colors
+     * Interpolate between two colors
      * @private
      */
     _interpolateColor(from, to, t) {
-        const fromRGB = this._hexToRGB(from);
-        const toRGB = this._hexToRGB(to);
+        const fromRGB = this._parseColor(from);
+        const toRGB = this._parseColor(to);
 
         const r = Math.round(lerp(fromRGB.r, toRGB.r, t));
         const g = Math.round(lerp(fromRGB.g, toRGB.g, t));
         const b = Math.round(lerp(fromRGB.b, toRGB.b, t));
+        const a = lerp(fromRGB.a, toRGB.a, t);
 
-        return this._rgbToHex(r, g, b);
+        if (a < 1) {
+            return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
+        }
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     }
 
     /**
-     * Convert hex to RGB
+     * Parse color string to RGBA object
      * @private
      */
-    _hexToRGB(hex) {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        if (!result) {
-            // Handle 3-char hex
-            const short = /^#?([a-f\d])([a-f\d])([a-f\d])$/i.exec(hex);
-            if (short) {
-                return {
-                    r: parseInt(short[1] + short[1], 16),
-                    g: parseInt(short[2] + short[2], 16),
-                    b: parseInt(short[3] + short[3], 16)
-                };
+    _parseColor(color) {
+        // Handle hex
+        if (color.startsWith('#')) {
+            let hex = color.slice(1);
+            if (hex.length === 3) {
+                hex = hex.split('').map(c => c + c).join('');
             }
-            return { r: 0, g: 0, b: 0 };
+            if (hex.length === 6) {
+                hex += 'ff';
+            }
+            return {
+                r: parseInt(hex.slice(0, 2), 16),
+                g: parseInt(hex.slice(2, 4), 16),
+                b: parseInt(hex.slice(4, 6), 16),
+                a: parseInt(hex.slice(6, 8), 16) / 255
+            };
         }
+
+        // Handle rgba
+        const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\)/);
+        if (rgbaMatch) {
+            return {
+                r: parseInt(rgbaMatch[1]),
+                g: parseInt(rgbaMatch[2]),
+                b: parseInt(rgbaMatch[3]),
+                a: rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1
+            };
+        }
+
+        return { r: 0, g: 0, b: 0, a: 1 };
+    }
+
+    // ==========================================================================
+    // WORLD COORDINATES
+    // ==========================================================================
+
+    /**
+     * Get world transform for an object (accounting for parent transforms)
+     * @param {string} objectId
+     * @returns {Object} World position and transform
+     */
+    getWorldTransform(objectId) {
+        const props = this.currentState.get(objectId);
+        if (!props) return null;
+
+        let worldX = (props.x ?? 0) * this.width / 100;
+        let worldY = (props.y ?? 0) * this.height / 100;
+        let worldScale = props.scale ?? 1;
+        let worldRotation = props.rotation ?? 0;
+
+        // Apply z-depth scaling
+        const z = props.z ?? 0;
+        worldScale *= (1 + z * 0.01);
+
+        // Apply parent transforms if nested in group
+        if (props._parentId) {
+            const parentTransform = this.getWorldTransform(props._parentId);
+            if (parentTransform) {
+                // Apply parent translation
+                const cos = Math.cos(parentTransform.rotation * Math.PI / 180);
+                const sin = Math.sin(parentTransform.rotation * Math.PI / 180);
+
+                const localX = worldX;
+                const localY = worldY;
+
+                worldX = parentTransform.x + (localX * cos - localY * sin) * parentTransform.scale;
+                worldY = parentTransform.y + (localX * sin + localY * cos) * parentTransform.scale;
+                worldScale *= parentTransform.scale;
+                worldRotation += parentTransform.rotation;
+            }
+        }
+
         return {
-            r: parseInt(result[1], 16),
-            g: parseInt(result[2], 16),
-            b: parseInt(result[3], 16)
+            x: worldX,
+            y: worldY,
+            scale: worldScale,
+            rotation: worldRotation,
+            props
         };
     }
 
     /**
-     * Convert RGB to hex
-     * @private
+     * Get anchor position in world coordinates
+     * @param {string} objectId
+     * @param {string} anchor - 'top' | 'bottom' | 'left' | 'right' | 'center'
+     * @returns {Object} { x, y } in pixels
      */
-    _rgbToHex(r, g, b) {
-        return '#' + [r, g, b].map(x => {
-            const hex = x.toString(16);
-            return hex.length === 1 ? '0' + hex : hex;
-        }).join('');
+    getAnchorPosition(objectId, anchor = 'center') {
+        const world = this.getWorldTransform(objectId);
+        if (!world) return null;
+
+        const props = world.props;
+        const width = (props.width ?? 100) * this.width / 100 * world.scale;
+        const height = (props.height ?? 100) * this.height / 100 * world.scale;
+
+        let offsetX = 0, offsetY = 0;
+
+        switch (anchor) {
+            case 'top':
+                offsetY = -height / 2;
+                break;
+            case 'bottom':
+                offsetY = height / 2;
+                break;
+            case 'left':
+                offsetX = -width / 2;
+                break;
+            case 'right':
+                offsetX = width / 2;
+                break;
+            case 'center':
+            default:
+                break;
+        }
+
+        // Apply rotation to offset
+        const rad = world.rotation * Math.PI / 180;
+        const rotatedX = offsetX * Math.cos(rad) - offsetY * Math.sin(rad);
+        const rotatedY = offsetX * Math.sin(rad) + offsetY * Math.cos(rad);
+
+        return {
+            x: world.x + rotatedX,
+            y: world.y + rotatedY
+        };
+    }
+
+    // ==========================================================================
+    // STATE ACCESS
+    // ==========================================================================
+
+    /**
+     * Get current interpolated state as array of objects
+     * @returns {Array<Object>}
+     */
+    getCurrentState() {
+        const objects = [];
+
+        for (const [id, props] of this.currentState) {
+            // Skip children that are part of groups (they're rendered with parent)
+            if (props._parentId) continue;
+
+            objects.push({
+                id,
+                type: props._type,
+                props: this._cleanProps(props),
+                children: props._children
+            });
+        }
+
+        // Sort by zIndex
+        objects.sort((a, b) => (a.props.zIndex ?? 0) - (b.props.zIndex ?? 0));
+
+        return objects;
     }
 
     /**
-     * Clone this layer
-     * @returns {Layer}
+     * Remove internal properties from props object
+     * @private
      */
-    clone() {
-        return new Layer({
-            id: this.id + '-clone',
-            type: this.type,
-            keyframes: this.keyframes.map(k => ({
-                frame: k.frame,
-                value: { ...k.value }
-            })),
-            easing: this.easing
-        });
+    _cleanProps(props) {
+        const clean = {};
+        for (const [key, value] of Object.entries(props)) {
+            if (!key.startsWith('_')) {
+                clean[key] = value;
+            }
+        }
+        return clean;
+    }
+
+    /**
+     * Get object by ID from current state
+     * @param {string} objectId
+     * @returns {Object|null}
+     */
+    getObject(objectId) {
+        const props = this.currentState.get(objectId);
+        if (!props) return null;
+
+        return {
+            id: objectId,
+            type: props._type,
+            props: this._cleanProps(props)
+        };
     }
 }
 
-/**
- * Preset compositions for common use cases
- */
-export const Presets = {
-    /**
-     * Create a simple fade-in composition
-     */
-    fadeIn(config = {}) {
-        const comp = new Composition({
-            width: config.width || 800,
-            height: config.height || 600,
-            fps: config.fps || 60,
-            durationInFrames: config.frames || 60
-        });
+// ==========================================================================
+// POSITIONING HELPERS
+// ==========================================================================
 
-        const layer = new Layer({
-            id: 'fade-element',
-            type: config.type || 'rect',
-            keyframes: [
-                { frame: 0, value: { ...config.props, opacity: 0 } },
-                { frame: config.frames || 60, value: { ...config.props, opacity: 1 } }
-            ]
-        });
-
-        return comp.addLayer(layer);
-    },
+export const Position = {
+    Center: () => ({ x: 50, y: 50 }),
+    Top: (offset = 5) => ({ x: 50, y: offset }),
+    Bottom: (offset = 5) => ({ x: 50, y: 100 - offset }),
+    Left: (offset = 5) => ({ x: offset, y: 50 }),
+    Right: (offset = 5) => ({ x: 100 - offset, y: 50 }),
+    TopLeft: (offset = 5) => ({ x: offset, y: offset }),
+    TopRight: (offset = 5) => ({ x: 100 - offset, y: offset }),
+    BottomLeft: (offset = 5) => ({ x: offset, y: 100 - offset }),
+    BottomRight: (offset = 5) => ({ x: 100 - offset, y: 100 - offset }),
 
     /**
-     * Create a slide-in composition
+     * Get position in a grid layout
+     * @param {number} rows - Number of rows
+     * @param {number} cols - Number of columns
+     * @param {number} index - Cell index (0-based)
+     * @param {number} [padding=10] - Padding from edges in %
+     * @returns {Object} { x, y }
      */
-    slideIn(config = {}) {
-        const comp = new Composition({
-            width: config.width || 800,
-            height: config.height || 600,
-            fps: config.fps || 60,
-            durationInFrames: config.frames || 60
-        });
+    Grid: (rows, cols, index, padding = 10) => {
+        const row = Math.floor(index / cols);
+        const col = index % cols;
 
-        const startX = config.direction === 'right' ? comp.width + 100 : -100;
-        const endX = config.props?.x || comp.width / 2;
+        const cellWidth = (100 - 2 * padding) / cols;
+        const cellHeight = (100 - 2 * padding) / rows;
 
-        const layer = new Layer({
-            id: 'slide-element',
-            type: config.type || 'rect',
-            keyframes: [
-                { frame: 0, value: { ...config.props, x: startX, opacity: 0 } },
-                { frame: config.frames || 60, value: { ...config.props, x: endX, opacity: 1 } }
-            ]
-        });
-
-        return comp.addLayer(layer);
+        return {
+            x: padding + cellWidth * (col + 0.5),
+            y: padding + cellHeight * (row + 0.5)
+        };
     }
 };
 
-// Export easing functions for convenience
-export { lerp, easeInOutCubic, easeOutQuad, easeInQuad } from '../utils/animation.js';
+// ==========================================================================
+// LEGACY EXPORTS (for backwards compatibility)
+// ==========================================================================
+
+// Re-export from animation.js for convenience
+export { lerp, getEasing, easeInOutCubic } from '../utils/animation.js';

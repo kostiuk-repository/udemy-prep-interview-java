@@ -1,157 +1,645 @@
 /**
  * Lesson Visuals - Video 01: Why You Keep Failing Interviews
- * Custom visual compositions for this lesson
+ * State-Based Animation Scenes
  */
 
-import { Composition, Layer } from '../../shared/js/visual/VisualEngine.js';
-import { easeOutCubic, easeInOutCubic } from '../../shared/js/utils/animation.js';
-
 /**
- * Create all visual compositions for this lesson
- * @returns {Object} Map of visualId to Composition
+ * Create all visual scenes for this lesson
+ * @returns {Object} Map of visualId to Scene definition
  */
 export function createVisuals() {
     return {
-        'hook-transition': createHookTransition(),
-        'pie-chart': createPieChart(),
-        'killer1-animation': createKiller1Animation(),
-        'killer2-animation': createKiller2Animation(),
-        'killer3-animation': createKiller3Animation(),
-        'spider-framework': createSpiderFramework()
+        'hook-transition': hookTransitionScene,
+        'pie-chart': pieChartScene,
+        'killer1-animation': killer1Scene,
+        'killer2-animation': killer2Scene,
+        'killer3-animation': killer3Scene,
+        'spider-framework': spiderFrameworkScene
     };
 }
 
+// ==========================================================================
+// HOOK SECTION - LeetCode to Interview Transition
+// ==========================================================================
+
+export const hookTransitionScene = {
+    id: 'hook-transition',
+    duration: 800,
+    background: '#1a1a2e',
+
+    steps: [
+        // Step 1: "300+ Problems Solved" 
+        {
+            id: 'step1',
+            duration: 600,
+            objects: [
+                {
+                    id: 'leetcode-count',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 35,
+                        text: '300+',
+                        fontSize: 72,
+                        fontWeight: 'bold',
+                        fill: '#10b981',
+                        opacity: 1
+                    }
+                },
+                {
+                    id: 'leetcode-label',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 45,
+                        text: 'Problems Solved',
+                        fontSize: 24,
+                        fill: '#64748b',
+                        opacity: 1
+                    }
+                }
+            ]
+        },
+
+        // Step 2: Interview question appears
+        {
+            id: 'step2',
+            duration: 800,
+            objects: [
+                {
+                    id: 'leetcode-count',
+                    props: { y: 25, opacity: 0.5 }
+                },
+                {
+                    id: 'leetcode-label',
+                    props: { y: 35, opacity: 0.5 }
+                },
+                {
+                    id: 'interview-icon',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 55,
+                        text: '❌',
+                        fontSize: 48,
+                        opacity: 1
+                    }
+                },
+                {
+                    id: 'interview-question',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 68,
+                        text: '"Design a payment system..."',
+                        fontSize: 20,
+                        fill: '#ef4444',
+                        opacity: 1
+                    }
+                }
+            ]
+        },
+
+        // Step 3: "Both Sides" reveal
+        {
+            id: 'step3',
+            duration: 600,
+            objects: [
+                { id: 'leetcode-count', props: { y: 15, opacity: 0.3 } },
+                { id: 'leetcode-label', props: { y: 25, opacity: 0.3 } },
+                { id: 'interview-icon', props: { y: 45, opacity: 0.6 } },
+                { id: 'interview-question', props: { y: 55, opacity: 0.6 } },
+                {
+                    id: 'both-sides-icon',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 75,
+                        text: '💡',
+                        fontSize: 36,
+                        opacity: 1
+                    }
+                },
+                {
+                    id: 'both-sides-text',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 88,
+                        text: "I've Been On Both Sides",
+                        fontSize: 18,
+                        fill: '#2563eb',
+                        opacity: 1
+                    }
+                }
+            ]
+        }
+    ]
+};
+
+// ==========================================================================
+// PIE CHART - The 30/70 Split
+// ==========================================================================
+
+export const pieChartScene = {
+    id: 'pie-chart',
+    duration: 1000,
+    background: '#1a1a2e',
+
+    steps: [
+        // Step 1: 30% slice appears
+        {
+            id: 'step1',
+            duration: 800,
+            objects: [
+                {
+                    id: 'slice-30',
+                    type: 'path',
+                    props: {
+                        x: 50, y: 50,
+                        d: createPieSlicePath(0, 0, 15, -90, 18),
+                        fill: '#10b981',
+                        opacity: 1,
+                        zIndex: 2
+                    }
+                },
+                {
+                    id: 'label-30',
+                    type: 'text',
+                    props: {
+                        x: 62, y: 30,
+                        text: '30%',
+                        fontSize: 24,
+                        fontWeight: 'bold',
+                        fill: '#10b981',
+                        opacity: 1
+                    }
+                },
+                {
+                    id: 'label-30-desc',
+                    type: 'text',
+                    props: {
+                        x: 62, y: 38,
+                        text: 'LeetCode',
+                        fontSize: 14,
+                        fill: '#10b981',
+                        opacity: 0.8
+                    }
+                }
+            ]
+        },
+
+        // Step 2: 70% slice appears
+        {
+            id: 'step2',
+            duration: 1000,
+            objects: [
+                {
+                    id: 'slice-30',
+                    props: { opacity: 1 }
+                },
+                { id: 'label-30', props: { opacity: 1 } },
+                { id: 'label-30-desc', props: { opacity: 1 } },
+                {
+                    id: 'slice-70',
+                    type: 'path',
+                    props: {
+                        x: 50, y: 50,
+                        d: createPieSlicePath(0, 0, 15, 18, 270),
+                        fill: '#ef4444',
+                        opacity: 1,
+                        zIndex: 1
+                    }
+                },
+                {
+                    id: 'label-70',
+                    type: 'text',
+                    props: {
+                        x: 38, y: 70,
+                        text: '70%',
+                        fontSize: 32,
+                        fontWeight: 'bold',
+                        fill: '#ef4444',
+                        opacity: 1
+                    }
+                },
+                {
+                    id: 'label-70-desc',
+                    type: 'text',
+                    props: {
+                        x: 38, y: 80,
+                        text: 'Real Skills',
+                        fontSize: 14,
+                        fill: '#ef4444',
+                        opacity: 0.8
+                    }
+                }
+            ]
+        },
+
+        // Step 3: Emphasis
+        {
+            id: 'step3',
+            duration: 600,
+            objects: [
+                { id: 'slice-30', props: { opacity: 0.6 } },
+                { id: 'label-30', props: { opacity: 0.6 } },
+                { id: 'label-30-desc', props: { opacity: 0.5 } },
+                { id: 'slice-70', props: { opacity: 1, z: 10 } },
+                { id: 'label-70', props: { opacity: 1, fontSize: 36 } },
+                { id: 'label-70-desc', props: { opacity: 1 } }
+            ]
+        }
+    ]
+};
+
+// ==========================================================================
+// KILLER #1 - Business Logic
+// ==========================================================================
+
+export const killer1Scene = {
+    id: 'killer1-animation',
+    duration: 800,
+    background: '#1a1a2e',
+
+    steps: [
+        // Step 1: Problem card
+        {
+            id: 'step1',
+            objects: [
+                {
+                    id: 'killer-card',
+                    type: 'group',
+                    props: {
+                        x: 50, y: 20,
+                        shadow: { blur: 20, color: 'rgba(239, 68, 68, 0.3)' }
+                    },
+                    children: [
+                        {
+                            type: 'rect',
+                            props: {
+                                width: 85, height: 18,
+                                fill: '#334155',
+                                stroke: '#ef4444',
+                                strokeWidth: 3,
+                                rx: 12
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: {
+                                x: -38, y: 0,
+                                text: '#1',
+                                fontSize: 36,
+                                fontWeight: 'bold',
+                                fill: '#ef4444'
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: {
+                                x: 5, y: -3,
+                                text: 'Business Logic Complexity',
+                                fontSize: 20,
+                                fontWeight: 'bold',
+                                fill: '#f1f5f9'
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: {
+                                x: 5, y: 5,
+                                text: '"Implement a money transfer system"',
+                                fontSize: 14,
+                                fill: '#cbd5e1'
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+
+        // Step 2: Code block
+        {
+            id: 'step2',
+            objects: [
+                { id: 'killer-card', props: { y: 15 } },
+                {
+                    id: 'code-block',
+                    type: 'rect',
+                    props: {
+                        x: 50, y: 50,
+                        width: 85, height: 25,
+                        fill: '#0f172a',
+                        rx: 8,
+                        opacity: 1
+                    }
+                },
+                {
+                    id: 'code-text',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 50,
+                        text: '// Missing: Transaction safety, idempotency, race conditions...',
+                        fontSize: 12,
+                        fill: '#94a3b8',
+                        opacity: 1
+                    }
+                }
+            ]
+        },
+
+        // Step 3: Warning
+        {
+            id: 'step3',
+            objects: [
+                { id: 'killer-card', props: { y: 12 } },
+                { id: 'code-block', props: { y: 42 } },
+                { id: 'code-text', props: { y: 42 } },
+                {
+                    id: 'warning-box',
+                    type: 'group',
+                    props: {
+                        x: 50, y: 78,
+                        shadow: { blur: 15, color: 'rgba(239, 68, 68, 0.4)' }
+                    },
+                    children: [
+                        {
+                            type: 'rect',
+                            props: {
+                                width: 85, height: 18,
+                                fill: 'rgba(239, 68, 68, 0.1)',
+                                stroke: '#ef4444',
+                                strokeWidth: 2,
+                                rx: 8
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: {
+                                x: 0, y: 0,
+                                text: '80% of candidates fail this',
+                                fontSize: 24,
+                                fontWeight: 'bold',
+                                fill: '#ef4444'
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+};
+
+// ==========================================================================
+// KILLER #2 - Theory Under Pressure
+// ==========================================================================
+
+export const killer2Scene = {
+    id: 'killer2-animation',
+    duration: 800,
+    background: '#1a1a2e',
+
+    steps: [
+        // Step 1: Main question
+        {
+            id: 'step1',
+            objects: [
+                {
+                    id: 'main-question',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 20,
+                        text: '"Explain how a HashMap works"',
+                        fontSize: 28,
+                        fontWeight: 'bold',
+                        fill: '#f1f5f9',
+                        opacity: 1
+                    }
+                }
+            ]
+        },
+
+        // Step 2: Follow-up questions
+        {
+            id: 'step2',
+            objects: [
+                { id: 'main-question', props: { y: 15 } },
+                {
+                    id: 'followup-1',
+                    type: 'text',
+                    props: {
+                        x: 25, y: 40,
+                        text: '↳ "What happens with the load factor?"',
+                        fontSize: 16,
+                        fill: '#cbd5e1',
+                        opacity: 1
+                    }
+                },
+                {
+                    id: 'followup-2',
+                    type: 'text',
+                    props: {
+                        x: 25, y: 52,
+                        text: '↳ "Why is resize O(n) amortized?"',
+                        fontSize: 16,
+                        fill: '#cbd5e1',
+                        opacity: 1
+                    }
+                },
+                {
+                    id: 'followup-3',
+                    type: 'text',
+                    props: {
+                        x: 25, y: 64,
+                        text: '↳ "How does Java 8 handle collisions?"',
+                        fontSize: 16,
+                        fill: '#cbd5e1',
+                        opacity: 1
+                    }
+                },
+                {
+                    id: 'gap-message',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 85,
+                        text: 'The gap: KNOWING vs ARTICULATING under pressure',
+                        fontSize: 16,
+                        fill: '#f97316',
+                        opacity: 1
+                    }
+                }
+            ]
+        }
+    ]
+};
+
+// ==========================================================================
+// KILLER #3 - System Design
+// ==========================================================================
+
+export const killer3Scene = {
+    id: 'killer3-animation',
+    duration: 800,
+    background: '#1a1a2e',
+
+    steps: [
+        // Step 1: System boxes
+        {
+            id: 'step1',
+            objects: [
+                {
+                    id: 'box-lb',
+                    type: 'group',
+                    props: { x: 25, y: 40 },
+                    children: [
+                        { type: 'rect', props: { width: 15, height: 12, fill: '#3b82f6', rx: 8 } },
+                        { type: 'text', props: { y: 0, text: 'Load\nBalancer', fontSize: 12, fill: '#fff' } }
+                    ]
+                },
+                {
+                    id: 'box-api',
+                    type: 'group',
+                    props: { x: 50, y: 40 },
+                    children: [
+                        { type: 'rect', props: { width: 15, height: 12, fill: '#10b981', rx: 8 } },
+                        { type: 'text', props: { y: 0, text: 'API\nServer', fontSize: 12, fill: '#fff' } }
+                    ]
+                },
+                {
+                    id: 'box-db',
+                    type: 'group',
+                    props: { x: 75, y: 40 },
+                    children: [
+                        { type: 'rect', props: { width: 15, height: 12, fill: '#f97316', rx: 8 } },
+                        { type: 'text', props: { y: 0, text: 'Database', fontSize: 12, fill: '#fff' } }
+                    ]
+                }
+            ]
+        },
+
+        // Step 2: Deep dive message
+        {
+            id: 'step2',
+            objects: [
+                { id: 'box-lb', props: { opacity: 0.7 } },
+                { id: 'box-api', props: { opacity: 0.7 } },
+                { id: 'box-db', props: { opacity: 0.7 } },
+                {
+                    id: 'deep-dive',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 70,
+                        text: 'Drawing boxes is easy...',
+                        fontSize: 20,
+                        fill: '#64748b',
+                        opacity: 1
+                    }
+                },
+                {
+                    id: 'defend-message',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 82,
+                        text: 'DEFENDING your choices is what matters',
+                        fontSize: 18,
+                        fontWeight: 'bold',
+                        fill: '#2563eb',
+                        opacity: 1
+                    }
+                }
+            ]
+        }
+    ]
+};
+
+// ==========================================================================
+// SPIDER FRAMEWORK
+// ==========================================================================
+
+const spiderItems = [
+    { letter: 'S', word: 'Scope', desc: 'Clarify requirements before coding', color: '#ef4444' },
+    { letter: 'P', word: 'Plan', desc: 'Structure your solution verbally first', color: '#f97316' },
+    { letter: 'I', word: 'Implement', desc: 'Write production-quality code', color: '#eab308' },
+    { letter: 'D', word: 'Debug', desc: 'Trace through edge cases', color: '#22c55e' },
+    { letter: 'E', word: 'Evaluate', desc: 'Discuss trade-offs honestly', color: '#3b82f6' },
+    { letter: 'R', word: 'Refine', desc: 'Optimize with interviewer feedback', color: '#8b5cf6' }
+];
+
+export const spiderFrameworkScene = {
+    id: 'spider-framework',
+    duration: 600,
+    background: '#1a1a2e',
+
+    steps: [
+        // Step 1: Title
+        {
+            id: 'step1',
+            objects: [
+                {
+                    id: 'title',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 8,
+                        text: 'The SPIDER Framework',
+                        fontSize: 36,
+                        fontWeight: 'bold',
+                        fill: '#f1f5f9',
+                        opacity: 1
+                    }
+                }
+            ]
+        },
+        // Steps 2-7: Each SPIDER letter
+        ...spiderItems.map((item, i) => ({
+            id: `step${i + 2}`,
+            duration: 500,
+            objects: [
+                { id: 'title', props: { opacity: 1 } },
+                ...spiderItems.slice(0, i + 1).map((it, j) => ({
+                    id: `spider-${it.letter}`,
+                    type: 'group',
+                    props: {
+                        x: 15, y: 18 + j * 12,
+                        opacity: 1
+                    },
+                    children: [
+                        {
+                            type: 'text',
+                            props: {
+                                x: 0, y: 0,
+                                text: it.letter,
+                                fontSize: 36,
+                                fontWeight: 'bold',
+                                fill: it.color
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: {
+                                x: 8, y: -2,
+                                text: it.word,
+                                fontSize: 20,
+                                fontWeight: 'bold',
+                                fill: '#f1f5f9'
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: {
+                                x: 8, y: 4,
+                                text: it.desc,
+                                fontSize: 12,
+                                fill: '#94a3b8'
+                            }
+                        }
+                    ]
+                }))
+            ]
+        }))
+    ]
+};
+
+// ==========================================================================
+// HELPER FUNCTIONS
+// ==========================================================================
+
 /**
- * Hook section - LeetCode to Interview transition
- */
-function createHookTransition() {
-    const comp = new Composition({
-        width: 800,
-        height: 500,
-        fps: 60,
-        durationInFrames: 180 // 3 steps at 60 frames each
-    });
-
-    // Step 1: "300+ Problems Solved" text
-    comp.addLayer(new Layer({
-        id: 'leetcode-count',
-        type: 'text',
-        keyframes: [
-            { frame: 0, value: { x: 400, y: 150, text: '300+', fontSize: 72, fontFamily: 'Segoe UI', fontWeight: 'bold', fill: '#10b981', textAnchor: 'middle', opacity: 0 } },
-            { frame: 30, value: { x: 400, y: 150, text: '300+', fontSize: 72, fontFamily: 'Segoe UI', fontWeight: 'bold', fill: '#10b981', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }).setEasing(easeOutCubic));
-
-    comp.addLayer(new Layer({
-        id: 'leetcode-label',
-        type: 'text',
-        keyframes: [
-            { frame: 0, value: { x: 400, y: 200, text: 'Problems Solved', fontSize: 24, fontFamily: 'Segoe UI', fill: '#64748b', textAnchor: 'middle', opacity: 0 } },
-            { frame: 40, value: { x: 400, y: 200, text: 'Problems Solved', fontSize: 24, fontFamily: 'Segoe UI', fill: '#64748b', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    // Step 2: Interview question appears
-    comp.addLayer(new Layer({
-        id: 'interview-icon',
-        type: 'text',
-        keyframes: [
-            { frame: 60, value: { x: 400, y: 280, text: '❌', fontSize: 48, textAnchor: 'middle', opacity: 0 } },
-            { frame: 90, value: { x: 400, y: 280, text: '❌', fontSize: 48, textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    comp.addLayer(new Layer({
-        id: 'interview-question',
-        type: 'text',
-        keyframes: [
-            { frame: 60, value: { x: 400, y: 340, text: '"Design a payment system..."', fontSize: 20, fontFamily: 'Segoe UI', fill: '#ef4444', textAnchor: 'middle', opacity: 0 } },
-            { frame: 100, value: { x: 400, y: 340, text: '"Design a payment system..."', fontSize: 20, fontFamily: 'Segoe UI', fill: '#ef4444', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    // Step 3: "Both Sides" reveal
-    comp.addLayer(new Layer({
-        id: 'both-sides-icon',
-        type: 'text',
-        keyframes: [
-            { frame: 120, value: { x: 400, y: 420, text: '💡', fontSize: 36, textAnchor: 'middle', opacity: 0 } },
-            { frame: 150, value: { x: 400, y: 420, text: '💡', fontSize: 36, textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    comp.addLayer(new Layer({
-        id: 'both-sides-text',
-        type: 'text',
-        keyframes: [
-            { frame: 120, value: { x: 400, y: 470, text: "I've Been On Both Sides", fontSize: 18, fontFamily: 'Segoe UI', fill: '#2563eb', textAnchor: 'middle', opacity: 0 } },
-            { frame: 160, value: { x: 400, y: 470, text: "I've Been On Both Sides", fontSize: 18, fontFamily: 'Segoe UI', fill: '#2563eb', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    return comp;
-}
-
-/**
- * Problem section - The 30/70 split pie chart
- */
-function createPieChart() {
-    const comp = new Composition({
-        width: 400,
-        height: 400,
-        fps: 60,
-        durationInFrames: 180
-    });
-
-    const centerX = 200;
-    const centerY = 200;
-    const radius = 120;
-
-    // Step 1: 30% slice (LeetCode)
-    const slice30Degrees = 360 * 0.30;
-    comp.addLayer(new Layer({
-        id: 'slice-leetcode',
-        type: 'path',
-        keyframes: [
-            { frame: 0, value: { d: createPieSlicePath(centerX, centerY, 0, 0, 0), fill: '#10b981', opacity: 0 } },
-            { frame: 60, value: { d: createPieSlicePath(centerX, centerY, radius, -90, -90 + slice30Degrees), fill: '#10b981', opacity: 1 } }
-        ]
-    }).setEasing(easeInOutCubic));
-
-    // Step 2: 70% slice (Real Skills)
-    comp.addLayer(new Layer({
-        id: 'slice-real',
-        type: 'path',
-        keyframes: [
-            { frame: 60, value: { d: createPieSlicePath(centerX, centerY, radius, -90 + slice30Degrees, -90 + slice30Degrees), fill: '#ef4444', opacity: 0 } },
-            { frame: 120, value: { d: createPieSlicePath(centerX, centerY, radius, -90 + slice30Degrees, 270), fill: '#ef4444', opacity: 1 } }
-        ]
-    }).setEasing(easeInOutCubic));
-
-    // Labels
-    comp.addLayer(new Layer({
-        id: 'label-30',
-        type: 'text',
-        keyframes: [
-            { frame: 30, value: { x: 240, y: 120, text: '30%', fontSize: 24, fontWeight: 'bold', fill: '#10b981', textAnchor: 'middle', opacity: 0 } },
-            { frame: 60, value: { x: 240, y: 120, text: '30%', fontSize: 24, fontWeight: 'bold', fill: '#10b981', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    comp.addLayer(new Layer({
-        id: 'label-70',
-        type: 'text',
-        keyframes: [
-            { frame: 90, value: { x: 160, y: 280, text: '70%', fontSize: 32, fontWeight: 'bold', fill: '#ef4444', textAnchor: 'middle', opacity: 0 } },
-            { frame: 120, value: { x: 160, y: 280, text: '70%', fontSize: 32, fontWeight: 'bold', fill: '#ef4444', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    return comp;
-}
-
-/**
- * Create SVG path for a pie slice
+ * Create SVG path for a pie slice (using percentage coordinates)
  */
 function createPieSlicePath(cx, cy, r, startAngle, endAngle) {
     if (r === 0) return `M ${cx} ${cy}`;
@@ -167,256 +655,4 @@ function createPieSlicePath(cx, cy, r, startAngle, endAngle) {
     const largeArc = endAngle - startAngle > 180 ? 1 : 0;
 
     return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-}
-
-/**
- * Killer #1 - Business Logic Implementation Gap
- */
-function createKiller1Animation() {
-    const comp = new Composition({
-        width: 800,
-        height: 500,
-        fps: 60,
-        durationInFrames: 180
-    });
-
-    // Step 1: Problem card
-    comp.addLayer(new Layer({
-        id: 'killer-card',
-        type: 'rect',
-        keyframes: [
-            { frame: 0, value: { x: 50, y: 50, width: 700, height: 120, rx: 12, fill: '#334155', stroke: '#ef4444', strokeWidth: 4, opacity: 0 } },
-            { frame: 30, value: { x: 50, y: 50, width: 700, height: 120, rx: 12, fill: '#334155', stroke: '#ef4444', strokeWidth: 4, opacity: 1 } }
-        ]
-    }));
-
-    comp.addLayer(new Layer({
-        id: 'killer-number',
-        type: 'text',
-        keyframes: [
-            { frame: 0, value: { x: 80, y: 100, text: '#1', fontSize: 48, fontWeight: 'bold', fill: '#ef4444', opacity: 0 } },
-            { frame: 30, value: { x: 80, y: 100, text: '#1', fontSize: 48, fontWeight: 'bold', fill: '#ef4444', opacity: 1 } }
-        ]
-    }));
-
-    comp.addLayer(new Layer({
-        id: 'killer-title',
-        type: 'text',
-        keyframes: [
-            { frame: 0, value: { x: 160, y: 90, text: 'Business Logic Complexity', fontSize: 24, fontWeight: 'bold', fill: '#f1f5f9', opacity: 0 } },
-            { frame: 40, value: { x: 160, y: 90, text: 'Business Logic Complexity', fontSize: 24, fontWeight: 'bold', fill: '#f1f5f9', opacity: 1 } }
-        ]
-    }));
-
-    comp.addLayer(new Layer({
-        id: 'killer-subtitle',
-        type: 'text',
-        keyframes: [
-            { frame: 0, value: { x: 160, y: 130, text: '"Implement a money transfer system"', fontSize: 16, fill: '#cbd5e1', opacity: 0 } },
-            { frame: 50, value: { x: 160, y: 130, text: '"Implement a money transfer system"', fontSize: 16, fill: '#cbd5e1', opacity: 1 } }
-        ]
-    }));
-
-    // Step 2: Code block appears
-    comp.addLayer(new Layer({
-        id: 'code-block',
-        type: 'rect',
-        keyframes: [
-            { frame: 60, value: { x: 50, y: 190, width: 700, height: 150, rx: 8, fill: '#0f172a', opacity: 0 } },
-            { frame: 90, value: { x: 50, y: 190, width: 700, height: 150, rx: 8, fill: '#0f172a', opacity: 1 } }
-        ]
-    }));
-
-    // Step 3: Warning box
-    comp.addLayer(new Layer({
-        id: 'warning-box',
-        type: 'rect',
-        keyframes: [
-            { frame: 120, value: { x: 50, y: 360, width: 700, height: 120, rx: 8, fill: 'rgba(239, 68, 68, 0.1)', stroke: '#ef4444', strokeWidth: 2, opacity: 0 } },
-            { frame: 150, value: { x: 50, y: 360, width: 700, height: 120, rx: 8, fill: 'rgba(239, 68, 68, 0.1)', stroke: '#ef4444', strokeWidth: 2, opacity: 1 } }
-        ]
-    }));
-
-    comp.addLayer(new Layer({
-        id: 'fail-stat',
-        type: 'text',
-        keyframes: [
-            { frame: 120, value: { x: 400, y: 440, text: '80% of candidates fail this', fontSize: 24, fontWeight: 'bold', fill: '#ef4444', textAnchor: 'middle', opacity: 0 } },
-            { frame: 170, value: { x: 400, y: 440, text: '80% of candidates fail this', fontSize: 24, fontWeight: 'bold', fill: '#ef4444', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    return comp;
-}
-
-/**
- * Killer #2 - Theory Under Pressure
- */
-function createKiller2Animation() {
-    const comp = new Composition({
-        width: 800,
-        height: 400,
-        fps: 60,
-        durationInFrames: 120
-    });
-
-    // Question
-    comp.addLayer(new Layer({
-        id: 'main-question',
-        type: 'text',
-        keyframes: [
-            { frame: 0, value: { x: 400, y: 80, text: '"Explain how a HashMap works"', fontSize: 28, fontWeight: 'bold', fill: '#f1f5f9', textAnchor: 'middle', opacity: 0 } },
-            { frame: 30, value: { x: 400, y: 80, text: '"Explain how a HashMap works"', fontSize: 28, fontWeight: 'bold', fill: '#f1f5f9', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    // Follow-up questions
-    const followUps = [
-        { y: 160, text: '↳ "What happens with the load factor?"' },
-        { y: 210, text: '↳ "Why is resize O(n) amortized?"' },
-        { y: 260, text: '↳ "How does Java 8 handle collisions?"' }
-    ];
-
-    followUps.forEach((q, i) => {
-        comp.addLayer(new Layer({
-            id: `followup-${i}`,
-            type: 'text',
-            keyframes: [
-                { frame: 60 + i * 15, value: { x: 100, y: q.y, text: q.text, fontSize: 18, fill: '#cbd5e1', opacity: 0 } },
-                { frame: 80 + i * 15, value: { x: 100, y: q.y, text: q.text, fontSize: 18, fill: '#cbd5e1', opacity: 1 } }
-            ]
-        }));
-    });
-
-    // Gap message
-    comp.addLayer(new Layer({
-        id: 'gap-message',
-        type: 'text',
-        keyframes: [
-            { frame: 90, value: { x: 400, y: 340, text: 'The gap: KNOWING vs ARTICULATING under pressure', fontSize: 16, fill: '#f97316', textAnchor: 'middle', opacity: 0 } },
-            { frame: 120, value: { x: 400, y: 340, text: 'The gap: KNOWING vs ARTICULATING under pressure', fontSize: 16, fill: '#f97316', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    return comp;
-}
-
-/**
- * Killer #3 - System Design Reality
- */
-function createKiller3Animation() {
-    const comp = new Composition({
-        width: 800,
-        height: 400,
-        fps: 60,
-        durationInFrames: 120
-    });
-
-    // System design boxes
-    const boxes = [
-        { x: 100, y: 150, text: 'Load\nBalancer', color: '#3b82f6' },
-        { x: 300, y: 150, text: 'API\nServer', color: '#10b981' },
-        { x: 500, y: 150, text: 'Database', color: '#f97316' }
-    ];
-
-    boxes.forEach((box, i) => {
-        comp.addLayer(new Layer({
-            id: `box-${i}`,
-            type: 'rect',
-            keyframes: [
-                { frame: i * 15, value: { x: box.x, y: box.y, width: 120, height: 80, rx: 8, fill: box.color, opacity: 0 } },
-                { frame: 30 + i * 15, value: { x: box.x, y: box.y, width: 120, height: 80, rx: 8, fill: box.color, opacity: 1 } }
-            ]
-        }));
-    });
-
-    // Deep dive message
-    comp.addLayer(new Layer({
-        id: 'deep-dive',
-        type: 'text',
-        keyframes: [
-            { frame: 60, value: { x: 400, y: 300, text: 'Drawing boxes is easy...', fontSize: 20, fill: '#64748b', textAnchor: 'middle', opacity: 0 } },
-            { frame: 80, value: { x: 400, y: 300, text: 'Drawing boxes is easy...', fontSize: 20, fill: '#64748b', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    comp.addLayer(new Layer({
-        id: 'defend-message',
-        type: 'text',
-        keyframes: [
-            { frame: 80, value: { x: 400, y: 350, text: 'DEFENDING your choices is what matters', fontSize: 18, fontWeight: 'bold', fill: '#2563eb', textAnchor: 'middle', opacity: 0 } },
-            { frame: 110, value: { x: 400, y: 350, text: 'DEFENDING your choices is what matters', fontSize: 18, fontWeight: 'bold', fill: '#2563eb', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    return comp;
-}
-
-/**
- * Solution - SPIDER Framework
- */
-function createSpiderFramework() {
-    const comp = new Composition({
-        width: 800,
-        height: 600,
-        fps: 60,
-        durationInFrames: 420 // 7 steps at 60 frames each
-    });
-
-    const spiderItems = [
-        { letter: 'S', word: 'Scope', desc: 'Clarify requirements before coding', color: '#ef4444' },
-        { letter: 'P', word: 'Plan', desc: 'Structure your solution verbally first', color: '#f97316' },
-        { letter: 'I', word: 'Implement', desc: 'Write production-quality code', color: '#eab308' },
-        { letter: 'D', word: 'Debug', desc: 'Trace through edge cases', color: '#22c55e' },
-        { letter: 'E', word: 'Evaluate', desc: 'Discuss trade-offs honestly', color: '#3b82f6' },
-        { letter: 'R', word: 'Refine', desc: 'Optimize with interviewer feedback', color: '#8b5cf6' }
-    ];
-
-    // Title
-    comp.addLayer(new Layer({
-        id: 'title',
-        type: 'text',
-        keyframes: [
-            { frame: 0, value: { x: 400, y: 60, text: 'The SPIDER Framework', fontSize: 36, fontWeight: 'bold', fill: '#f1f5f9', textAnchor: 'middle', opacity: 0 } },
-            { frame: 30, value: { x: 400, y: 60, text: 'The SPIDER Framework', fontSize: 36, fontWeight: 'bold', fill: '#f1f5f9', textAnchor: 'middle', opacity: 1 } }
-        ]
-    }));
-
-    // SPIDER items
-    spiderItems.forEach((item, i) => {
-        const y = 120 + i * 70;
-        const stepStart = 60 + i * 60;
-
-        // Letter
-        comp.addLayer(new Layer({
-            id: `letter-${item.letter}`,
-            type: 'text',
-            keyframes: [
-                { frame: stepStart, value: { x: 100, y: y + 30, text: item.letter, fontSize: 48, fontWeight: 'bold', fill: item.color, opacity: 0 } },
-                { frame: stepStart + 30, value: { x: 100, y: y + 30, text: item.letter, fontSize: 48, fontWeight: 'bold', fill: item.color, opacity: 1 } }
-            ]
-        }));
-
-        // Word
-        comp.addLayer(new Layer({
-            id: `word-${item.letter}`,
-            type: 'text',
-            keyframes: [
-                { frame: stepStart, value: { x: 160, y: y + 20, text: item.word, fontSize: 24, fontWeight: 'bold', fill: '#f1f5f9', opacity: 0 } },
-                { frame: stepStart + 40, value: { x: 160, y: y + 20, text: item.word, fontSize: 24, fontWeight: 'bold', fill: '#f1f5f9', opacity: 1 } }
-            ]
-        }));
-
-        // Description
-        comp.addLayer(new Layer({
-            id: `desc-${item.letter}`,
-            type: 'text',
-            keyframes: [
-                { frame: stepStart, value: { x: 160, y: y + 45, text: item.desc, fontSize: 14, fill: '#94a3b8', opacity: 0 } },
-                { frame: stepStart + 50, value: { x: 160, y: y + 45, text: item.desc, fontSize: 14, fill: '#94a3b8', opacity: 1 } }
-            ]
-        }));
-    });
-
-    return comp;
 }

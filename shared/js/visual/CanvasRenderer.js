@@ -1,115 +1,221 @@
 /**
- * CanvasRenderer - Render Compositions to Canvas
+ * CanvasRenderer - Enhanced Canvas Renderer
  * Lesson Builder System
+ * 
+ * Features:
+ * - Resolution scaling (0.5x preview, 1.0x export)
+ * - Z-index sorting and pseudo-3D depth
+ * - Shadow support
+ * - Group rendering with transform inheritance
+ * - Connection arrows with world coordinates
+ * - Path2D SVG paths
  */
 
+/**
+ * CanvasRenderer - Render objects to Canvas with advanced features
+ */
 export class CanvasRenderer {
     /**
      * Create a Canvas renderer
-     * @param {Composition} composition - The composition to render
-     * @param {HTMLCanvasElement} [canvas] - Optional existing canvas
+     * @param {HTMLCanvasElement|OffscreenCanvas} canvas - Canvas element
+     * @param {Object} [options]
+     * @param {number} [options.scale=1.0] - Resolution scale (0.5 for preview, 1.0 for export)
+     * @param {boolean} [options.depthOfField=false] - Enable depth-of-field effect
      */
-    constructor(composition, canvas) {
-        this.composition = composition;
+    constructor(canvas, options = {}) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
 
-        if (canvas) {
-            this.canvas = canvas;
-        } else {
-            this.canvas = document.createElement('canvas');
-            this.canvas.width = composition.width;
-            this.canvas.height = composition.height;
-        }
+        this.scale = options.scale ?? 1.0;
+        this.depthOfField = options.depthOfField ?? false;
 
-        this.ctx = this.canvas.getContext('2d');
+        // Base resolution (4K 16:10)
+        this.baseWidth = 3840;
+        this.baseHeight = 2400;
+
+        // Actual canvas dimensions
+        this.width = Math.round(this.baseWidth * this.scale);
+        this.height = Math.round(this.baseHeight * this.scale);
+
+        // Set canvas size
+        canvas.width = this.width;
+        canvas.height = this.height;
+
+        // Cache for Path2D objects
+        this.pathCache = new Map();
+
+        // Object lookup for connection arrows
+        this.objectMap = new Map();
+
+        // Engine reference for world coordinates
+        this.engine = null;
     }
 
     /**
-     * Render a specific frame to the canvas
-     * @param {number} frameIndex
-     * @returns {HTMLCanvasElement}
+     * Set engine reference for world coordinate calculations
+     * @param {StateBasedEngine} engine
      */
-    renderFrame(frameIndex) {
-        const frameState = this.composition.getFrameState(frameIndex);
-        const ctx = this.ctx;
+    setEngine(engine) {
+        this.engine = engine;
+    }
 
-        // Clear canvas
-        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    /**
+     * Clear the canvas
+     * @param {string} [background] - Optional background color
+     */
+    clear(background) {
+        this.ctx.clearRect(0, 0, this.width, this.height);
 
-        // Draw background
-        if (frameState.background) {
-            ctx.fillStyle = frameState.background;
-            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        if (background) {
+            this.ctx.fillStyle = background;
+            this.ctx.fillRect(0, 0, this.width, this.height);
         }
+    }
 
-        // Render each layer
-        frameState.layers.forEach(layer => {
-            this.renderLayer(layer);
+    /**
+     * Render array of objects to canvas
+     * @param {Array<Object>} objects - Objects from engine.getCurrentState()
+     * @param {Object} [options]
+     * @param {string} [options.background] - Background color
+     */
+    render(objects, options = {}) {
+        // Clear canvas
+        this.clear(options.background);
+
+        // Build object map for connection arrows
+        this.objectMap.clear();
+        this._buildObjectMap(objects);
+
+        // Sort by zIndex
+        const sorted = [...objects].sort((a, b) => {
+            const aZ = a.props?.zIndex ?? 0;
+            const bZ = b.props?.zIndex ?? 0;
+            return aZ - bZ;
         });
 
-        return this.canvas;
+        // Render each object
+        for (const obj of sorted) {
+            this.renderObject(obj);
+        }
     }
 
     /**
-     * Render a single layer to the canvas
-     * @param {Object} layerState - Layer state at current frame
+     * Build map of object ID to object for lookups
+     * @private
      */
-    renderLayer(layerState) {
+    _buildObjectMap(objects) {
+        for (const obj of objects) {
+            this.objectMap.set(obj.id, obj);
+            if (obj.children) {
+                this._buildObjectMapRecursive(obj.id, obj.children);
+            }
+        }
+    }
+
+    /**
+     * Recursively build object map
+     * @private
+     */
+    _buildObjectMapRecursive(parentId, children) {
+        for (let i = 0; i < children.length; i++) {
+            const child = children[i];
+            const childId = child.id || `${parentId}_child_${i}`;
+            this.objectMap.set(childId, { ...child, id: childId, _parentId: parentId });
+
+            if (child.children) {
+                this._buildObjectMapRecursive(childId, child.children);
+            }
+        }
+    }
+
+    /**
+     * Render a single object
+     * @param {Object} obj - Object with { id, type, props, children }
+     * @param {Object} [parentTransform] - Parent transform for groups
+     */
+    renderObject(obj, parentTransform = null) {
         const ctx = this.ctx;
+        const props = obj.props || {};
+
         ctx.save();
 
-        // Apply common properties
-        if (layerState.opacity !== undefined) {
-            ctx.globalAlpha = layerState.opacity;
+        // Calculate position in pixels (convert from %)
+        let x = (props.x ?? 0) * this.width / 100;
+        let y = (props.y ?? 0) * this.height / 100;
+
+        // Apply parent transform if nested
+        if (parentTransform) {
+            const cos = Math.cos(parentTransform.rotation * Math.PI / 180);
+            const sin = Math.sin(parentTransform.rotation * Math.PI / 180);
+
+            const localX = x;
+            const localY = y;
+
+            x = parentTransform.x + (localX * cos - localY * sin) * parentTransform.scale;
+            y = parentTransform.y + (localX * sin + localY * cos) * parentTransform.scale;
         }
 
-        if (layerState.transform) {
-            this._applyTransform(layerState.transform);
+        // Z-depth scaling
+        const z = props.z ?? 0;
+        const depthScale = 1 + z * 0.01;
+        const totalScale = (props.scale ?? 1) * depthScale * (parentTransform?.scale ?? 1);
+
+        // Apply transforms
+        ctx.translate(x, y);
+        ctx.rotate((props.rotation ?? 0) * Math.PI / 180);
+        ctx.scale(totalScale, totalScale);
+
+        // Apply opacity
+        ctx.globalAlpha = (props.opacity ?? 1) * (parentTransform?.opacity ?? 1);
+
+        // Apply depth-of-field for background objects
+        if (this.depthOfField && z < 0) {
+            ctx.globalAlpha *= Math.max(0.6, 1 + z * 0.005);
+            // Note: filter blur would require additional canvas compositing
         }
 
-        // Set styles
-        if (layerState.fill) {
-            ctx.fillStyle = layerState.fill;
+        // Apply shadow
+        if (props.shadow) {
+            this._applyShadow(props.shadow);
         }
-        if (layerState.stroke) {
-            ctx.strokeStyle = layerState.stroke;
-        }
-        if (layerState.strokeWidth) {
-            ctx.lineWidth = layerState.strokeWidth;
-        }
+
+        // Set fill and stroke
+        if (props.fill) ctx.fillStyle = props.fill;
+        if (props.stroke) ctx.strokeStyle = props.stroke;
+        if (props.strokeWidth) ctx.lineWidth = props.strokeWidth / totalScale;
 
         // Render based on type
-        switch (layerState.type) {
+        switch (obj.type) {
             case 'rect':
-                this._renderRect(layerState);
+                this._renderRect(props);
                 break;
-
             case 'circle':
-                this._renderCircle(layerState);
+                this._renderCircle(props);
                 break;
-
             case 'ellipse':
-                this._renderEllipse(layerState);
+                this._renderEllipse(props);
                 break;
-
-            case 'line':
-                this._renderLine(layerState);
-                break;
-
-            case 'path':
-                this._renderPath(layerState);
-                break;
-
             case 'text':
-                this._renderText(layerState);
+                this._renderText(props);
                 break;
-
+            case 'line':
+                this._renderLine(props);
+                break;
+            case 'path':
+                this._renderPath(props);
+                break;
             case 'image':
-                this._renderImage(layerState);
+                this._renderImage(props);
                 break;
-
             case 'polygon':
             case 'polyline':
-                this._renderPolygon(layerState);
+                this._renderPolygon(props, obj.type);
+                break;
+            case 'group':
+                this._renderGroup(obj, { x, y, scale: totalScale, rotation: props.rotation ?? 0, opacity: ctx.globalAlpha });
+                break;
+            case 'connectionArrow':
+                this._renderConnectionArrow(props);
                 break;
         }
 
@@ -117,26 +223,39 @@ export class CanvasRenderer {
     }
 
     /**
+     * Apply shadow settings
+     * @private
+     */
+    _applyShadow(shadow) {
+        const ctx = this.ctx;
+        ctx.shadowColor = shadow.color || 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = (shadow.blur ?? 10) * this.scale;
+        ctx.shadowOffsetX = (shadow.offset?.x ?? 0) * this.scale;
+        ctx.shadowOffsetY = (shadow.offset?.y ?? 0) * this.scale;
+    }
+
+    /**
      * Render rectangle
      * @private
      */
-    _renderRect(state) {
+    _renderRect(props) {
         const ctx = this.ctx;
-        const x = state.x || 0;
-        const y = state.y || 0;
-        const width = state.width || 100;
-        const height = state.height || 100;
-        const rx = state.rx || 0;
-        const ry = state.ry || rx;
+        const width = this._toPixels(props.width ?? 10, 'width');
+        const height = this._toPixels(props.height ?? 10, 'height');
+        const rx = props.rx ?? 0;
+        const ry = props.ry ?? rx;
+
+        // Draw centered on position
+        const x = -width / 2;
+        const y = -height / 2;
 
         if (rx > 0 || ry > 0) {
-            // Rounded rectangle
             this._roundedRect(x, y, width, height, rx, ry);
-            if (state.fill) ctx.fill();
-            if (state.stroke) ctx.stroke();
+            if (props.fill) ctx.fill();
+            if (props.stroke) ctx.stroke();
         } else {
-            if (state.fill) ctx.fillRect(x, y, width, height);
-            if (state.stroke) ctx.strokeRect(x, y, width, height);
+            if (props.fill) ctx.fillRect(x, y, width, height);
+            if (props.stroke) ctx.strokeRect(x, y, width, height);
         }
     }
 
@@ -163,179 +282,295 @@ export class CanvasRenderer {
      * Render circle
      * @private
      */
-    _renderCircle(state) {
+    _renderCircle(props) {
         const ctx = this.ctx;
-        const cx = state.cx !== undefined ? state.cx : (state.x || 0);
-        const cy = state.cy !== undefined ? state.cy : (state.y || 0);
-        const r = state.r || state.radius || 50;
+        const r = this._toPixels(props.radius ?? props.r ?? 5, 'width');
 
         ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
 
-        if (state.fill) ctx.fill();
-        if (state.stroke) ctx.stroke();
+        if (props.fill) ctx.fill();
+        if (props.stroke) ctx.stroke();
     }
 
     /**
      * Render ellipse
      * @private
      */
-    _renderEllipse(state) {
+    _renderEllipse(props) {
         const ctx = this.ctx;
-        const cx = state.cx !== undefined ? state.cx : (state.x || 0);
-        const cy = state.cy !== undefined ? state.cy : (state.y || 0);
-        const rx = state.rx || 50;
-        const ry = state.ry || 30;
+        const rx = this._toPixels(props.rx ?? 5, 'width');
+        const ry = this._toPixels(props.ry ?? 3, 'height');
 
         ctx.beginPath();
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
 
-        if (state.fill) ctx.fill();
-        if (state.stroke) ctx.stroke();
-    }
-
-    /**
-     * Render line
-     * @private
-     */
-    _renderLine(state) {
-        const ctx = this.ctx;
-
-        ctx.beginPath();
-        ctx.moveTo(state.x1 || 0, state.y1 || 0);
-        ctx.lineTo(state.x2 || 100, state.y2 || 100);
-        ctx.stroke();
-    }
-
-    /**
-     * Render SVG path
-     * @private
-     */
-    _renderPath(state) {
-        const ctx = this.ctx;
-
-        if (state.d) {
-            const path = new Path2D(state.d);
-            if (state.fill) ctx.fill(path);
-            if (state.stroke) ctx.stroke(path);
-        }
+        if (props.fill) ctx.fill();
+        if (props.stroke) ctx.stroke();
     }
 
     /**
      * Render text
      * @private
      */
-    _renderText(state) {
+    _renderText(props) {
         const ctx = this.ctx;
 
-        // Build font string
-        const fontSize = state.fontSize || 16;
-        const fontFamily = state.fontFamily || 'sans-serif';
-        const fontWeight = state.fontWeight || 'normal';
+        // Scale font size
+        const fontSize = (props.fontSize ?? 16) * this.scale;
+        const fontFamily = props.fontFamily || 'Inter, sans-serif';
+        const fontWeight = props.fontWeight || 'normal';
+
         ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+        ctx.textAlign = props.align || 'center';
+        ctx.textBaseline = props.baseline || 'middle';
 
-        // Text alignment
-        if (state.textAnchor) {
-            const alignMap = { start: 'left', middle: 'center', end: 'right' };
-            ctx.textAlign = alignMap[state.textAnchor] || 'left';
+        const text = props.text || '';
+
+        if (props.fill) {
+            ctx.fillStyle = props.fill;
+            ctx.fillText(text, 0, 0);
+        }
+        if (props.stroke) {
+            ctx.strokeStyle = props.stroke;
+            ctx.strokeText(text, 0, 0);
+        }
+    }
+
+    /**
+     * Render line
+     * @private
+     */
+    _renderLine(props) {
+        const ctx = this.ctx;
+
+        const x1 = this._toPixels(props.x1 ?? 0, 'width');
+        const y1 = this._toPixels(props.y1 ?? 0, 'height');
+        const x2 = this._toPixels(props.x2 ?? 10, 'width');
+        const y2 = this._toPixels(props.y2 ?? 10, 'height');
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+    }
+
+    /**
+     * Render SVG path using Path2D
+     * @private
+     */
+    _renderPath(props) {
+        const ctx = this.ctx;
+        const d = props.d;
+
+        if (!d) return;
+
+        // Use cached Path2D or create new one
+        let path = this.pathCache.get(d);
+        if (!path) {
+            path = new Path2D(d);
+            this.pathCache.set(d, path);
         }
 
-        if (state.dominantBaseline) {
-            const baselineMap = {
-                'auto': 'alphabetic',
-                'middle': 'middle',
-                'hanging': 'hanging',
-                'central': 'middle'
-            };
-            ctx.textBaseline = baselineMap[state.dominantBaseline] || 'alphabetic';
-        }
-
-        const x = state.x || 0;
-        const y = state.y || 0;
-        const text = state.text || '';
-
-        if (state.fill) ctx.fillText(text, x, y);
-        if (state.stroke) ctx.strokeText(text, x, y);
+        if (props.fill) ctx.fill(path);
+        if (props.stroke) ctx.stroke(path);
     }
 
     /**
      * Render image
      * @private
      */
-    _renderImage(state) {
+    _renderImage(props) {
         const ctx = this.ctx;
+        const img = props._loadedImage;
 
-        if (state._loadedImage) {
-            ctx.drawImage(
-                state._loadedImage,
-                state.x || 0,
-                state.y || 0,
-                state.width || state._loadedImage.width,
-                state.height || state._loadedImage.height
-            );
-        }
+        if (!img) return;
+
+        const width = this._toPixels(props.width ?? 10, 'width');
+        const height = this._toPixels(props.height ?? 10, 'height');
+
+        ctx.drawImage(img, -width / 2, -height / 2, width, height);
     }
 
     /**
      * Render polygon/polyline
      * @private
      */
-    _renderPolygon(state) {
+    _renderPolygon(props, type) {
         const ctx = this.ctx;
+        const points = props.points;
 
-        if (!state.points) return;
-
-        // Parse points string "x1,y1 x2,y2 ..."
-        const pointsArray = state.points.trim().split(/\s+/).map(p => {
-            const [x, y] = p.split(',').map(Number);
-            return { x, y };
-        });
-
-        if (pointsArray.length < 2) return;
+        if (!points || !Array.isArray(points) || points.length < 2) return;
 
         ctx.beginPath();
-        ctx.moveTo(pointsArray[0].x, pointsArray[0].y);
+        ctx.moveTo(
+            this._toPixels(points[0].x, 'width'),
+            this._toPixels(points[0].y, 'height')
+        );
 
-        for (let i = 1; i < pointsArray.length; i++) {
-            ctx.lineTo(pointsArray[i].x, pointsArray[i].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(
+                this._toPixels(points[i].x, 'width'),
+                this._toPixels(points[i].y, 'height')
+            );
         }
 
-        if (state.type === 'polygon') {
+        if (type === 'polygon') {
             ctx.closePath();
+            if (props.fill) ctx.fill();
         }
-
-        if (state.fill && state.type === 'polygon') ctx.fill();
-        if (state.stroke) ctx.stroke();
+        if (props.stroke) ctx.stroke();
     }
 
     /**
-     * Apply CSS transform string to canvas context
+     * Render group with children
      * @private
      */
-    _applyTransform(transform) {
-        const ctx = this.ctx;
+    _renderGroup(group, transform) {
+        if (!group.children) return;
 
-        // Parse common transforms
-        const translateMatch = transform.match(/translate\(([^,]+),?\s*([^)]*)\)/);
-        if (translateMatch) {
-            const tx = parseFloat(translateMatch[1]) || 0;
-            const ty = parseFloat(translateMatch[2]) || 0;
-            ctx.translate(tx, ty);
-        }
+        for (let i = 0; i < group.children.length; i++) {
+            const child = group.children[i];
+            const childObj = {
+                id: child.id || `${group.id}_child_${i}`,
+                type: child.type,
+                props: child.props,
+                children: child.children
+            };
 
-        const rotateMatch = transform.match(/rotate\(([^)]+)\)/);
-        if (rotateMatch) {
-            const angle = parseFloat(rotateMatch[1]) || 0;
-            ctx.rotate(angle * Math.PI / 180);
-        }
-
-        const scaleMatch = transform.match(/scale\(([^,]+),?\s*([^)]*)\)/);
-        if (scaleMatch) {
-            const sx = parseFloat(scaleMatch[1]) || 1;
-            const sy = parseFloat(scaleMatch[2]) || sx;
-            ctx.scale(sx, sy);
+            this.renderObject(childObj, transform);
         }
     }
+
+    /**
+     * Render connection arrow between two objects
+     * @private
+     */
+    _renderConnectionArrow(props) {
+        const ctx = this.ctx;
+
+        // Get start and end positions using world coordinates
+        const startPos = this._getConnectionPoint(props.startTarget, props.startAnchor || 'right');
+        const endPos = this._getConnectionPoint(props.endTarget, props.endAnchor || 'left');
+
+        if (!startPos || !endPos) {
+            console.warn('CanvasRenderer: Connection arrow targets not found');
+            return;
+        }
+
+        // Reset transform since we're using absolute positions
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        const curve = props.curve ?? 0;
+        const arrowSize = (props.arrowSize ?? 10) * this.scale;
+
+        ctx.strokeStyle = props.stroke || '#2196F3';
+        ctx.lineWidth = (props.strokeWidth ?? 2) * this.scale;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(startPos.x, startPos.y);
+
+        if (curve > 0) {
+            // Bezier curve
+            const midX = (startPos.x + endPos.x) / 2;
+            const midY = (startPos.y + endPos.y) / 2;
+            const dx = endPos.x - startPos.x;
+            const dy = endPos.y - startPos.y;
+
+            // Perpendicular offset for curve
+            const offsetX = -dy * curve;
+            const offsetY = dx * curve;
+
+            const cp1x = midX + offsetX;
+            const cp1y = midY + offsetY;
+
+            ctx.quadraticCurveTo(cp1x, cp1y, endPos.x, endPos.y);
+        } else {
+            ctx.lineTo(endPos.x, endPos.y);
+        }
+
+        ctx.stroke();
+
+        // Draw arrow head
+        const angle = Math.atan2(endPos.y - startPos.y, endPos.x - startPos.x);
+
+        ctx.beginPath();
+        ctx.moveTo(endPos.x, endPos.y);
+        ctx.lineTo(
+            endPos.x - arrowSize * Math.cos(angle - Math.PI / 6),
+            endPos.y - arrowSize * Math.sin(angle - Math.PI / 6)
+        );
+        ctx.moveTo(endPos.x, endPos.y);
+        ctx.lineTo(
+            endPos.x - arrowSize * Math.cos(angle + Math.PI / 6),
+            endPos.y - arrowSize * Math.sin(angle + Math.PI / 6)
+        );
+        ctx.stroke();
+    }
+
+    /**
+     * Get connection point for an object using world coordinates
+     * @private
+     */
+    _getConnectionPoint(targetId, anchor) {
+        // Try to use engine for world coordinates
+        if (this.engine) {
+            return this.engine.getAnchorPosition(targetId, anchor);
+        }
+
+        // Fallback: use simple object lookup
+        const obj = this.objectMap.get(targetId);
+        if (!obj) return null;
+
+        const props = obj.props || {};
+        const x = (props.x ?? 50) * this.width / 100;
+        const y = (props.y ?? 50) * this.height / 100;
+        const width = this._toPixels(props.width ?? 10, 'width');
+        const height = this._toPixels(props.height ?? 10, 'height');
+
+        let offsetX = 0, offsetY = 0;
+
+        switch (anchor) {
+            case 'top':
+                offsetY = -height / 2;
+                break;
+            case 'bottom':
+                offsetY = height / 2;
+                break;
+            case 'left':
+                offsetX = -width / 2;
+                break;
+            case 'right':
+                offsetX = width / 2;
+                break;
+        }
+
+        return { x: x + offsetX, y: y + offsetY };
+    }
+
+    /**
+     * Convert percentage or absolute value to pixels
+     * @private
+     */
+    _toPixels(value, dimension) {
+        if (value === undefined) return 0;
+
+        // If value is small (likely percentage), convert
+        if (value <= 100) {
+            return dimension === 'width'
+                ? (value / 100) * this.width
+                : (value / 100) * this.height;
+        }
+
+        // Otherwise treat as absolute pixels, scale for resolution
+        return value * this.scale;
+    }
+
+    // ==========================================================================
+    // EXPORT UTILITIES
+    // ==========================================================================
 
     /**
      * Get canvas as PNG blob
@@ -358,12 +593,14 @@ export class CanvasRenderer {
 
     /**
      * Resize the canvas
-     * @param {number} width
-     * @param {number} height
+     * @param {number} scale - New scale factor
      */
-    resize(width, height) {
-        this.canvas.width = width;
-        this.canvas.height = height;
+    setScale(scale) {
+        this.scale = scale;
+        this.width = Math.round(this.baseWidth * scale);
+        this.height = Math.round(this.baseHeight * scale);
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
     }
 
     /**

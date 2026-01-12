@@ -161,21 +161,29 @@ production: {
 
 ## 2. Visuals File (`visuals.js`)
 
-The visuals file creates animated compositions using the Visual Engine.
+The visuals file creates animated scenes using the State-Based Animation Engine.
 
 ### Basic Structure
 
 ```javascript
-import { Composition, Layer } from '../../shared/js/visual/VisualEngine.js';
-import { easeOutCubic, easeInOutCubic } from '../../shared/js/utils/animation.js';
-
 export function createVisuals() {
     return {
-        'hook-transition': createHookTransition(),
-        'pie-chart': createPieChart(),
-        // ... more visuals
+        'hook-transition': hookTransitionScene,
+        'pie-chart': pieChartScene,
+        // ... more scenes
     };
 }
+
+export const hookTransitionScene = {
+    id: 'hook-transition',
+    duration: 800,       // Transition duration in ms
+    background: '#1a1a2e',
+    
+    steps: [
+        { id: 'step1', objects: [/* ... */] },
+        { id: 'step2', objects: [/* ... */] }
+    ]
+};
 ```
 
 > [!IMPORTANT]
@@ -183,124 +191,163 @@ export function createVisuals() {
 
 ---
 
-### Composition
+### Scene Definition
 
-A composition is a scene containing animated layers.
+A scene contains steps, each with objects that auto-interpolate between states.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | ✅ | Unique scene identifier |
+| `duration` | number | ✅ | Default transition duration in ms |
+| `background` | string | ❌ | Background color (e.g., `'#1a1a2e'`) |
+| `steps` | array | ✅ | Array of step objects |
+
+---
+
+### Step Object
+
+Each step defines the visual state of all objects.
 
 ```javascript
-function createMyVisual() {
-    const comp = new Composition({
-        width: 800,           // Canvas width in pixels
-        height: 500,          // Canvas height in pixels
-        fps: 60,              // Frames per second
-        durationInFrames: 180 // Total animation frames
-    });
-    
-    comp.addLayer(/* layer */);
-    
-    return comp;
+{
+    id: 'step1',
+    duration: 800,  // Override scene duration
+    objects: [
+        { id: 'title', type: 'text', props: { x: 50, y: 30, text: 'Hello' } },
+        { id: 'box', type: 'rect', props: { x: 50, y: 60, width: 20, height: 10 } }
+    ]
 }
 ```
 
-#### Composition Fields
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `width` | number | 800 | Canvas width in pixels |
-| `height` | number | 600 | Canvas height in pixels |
-| `fps` | number | 60 | Frames per second |
-| `durationInFrames` | number | **required** | Total frames in animation |
+**Key Behaviors:**
+- Objects in next step with same `id` → properties auto-animate
+- New objects → fade in (opacity 0→1)
+- Removed objects → fade out (opacity 1→0)
+- Missing properties → use defaults for smooth interpolation
 
 ---
 
-### Layer
-
-Layers are the individual animated elements within a composition.
-
-```javascript
-comp.addLayer(new Layer({
-    id: 'my-text',
-    type: 'text',
-    keyframes: [
-        { frame: 0, value: { x: 100, y: 100, text: 'Hello', opacity: 0 } },
-        { frame: 60, value: { x: 100, y: 100, text: 'Hello', opacity: 1 } }
-    ]
-}).setEasing(easeOutCubic));
-```
-
-#### Layer Types
+### Object Types
 
 | Type | Description | Key Properties |
 |------|-------------|----------------|
-| `rect` | Rectangle shape | `x`, `y`, `width`, `height`, `rx`, `fill`, `stroke`, `strokeWidth`, `opacity` |
-| `circle` | Circle shape | `cx`, `cy`, `r`, `fill`, `stroke`, `opacity` |
-| `text` | Text element | `x`, `y`, `text`, `fontSize`, `fontFamily`, `fontWeight`, `fill`, `textAnchor`, `opacity` |
-| `path` | SVG path | `d`, `fill`, `stroke`, `strokeWidth`, `opacity` |
-| `line` | Line element | `x1`, `y1`, `x2`, `y2`, `stroke`, `strokeWidth`, `opacity` |
-| `image` | Image element | `x`, `y`, `width`, `height`, `href`, `opacity` |
+| `rect` | Rectangle | `x`, `y`, `width`, `height`, `rx`, `fill`, `stroke`, `opacity` |
+| `circle` | Circle | `x`, `y`, `radius`, `fill`, `stroke`, `opacity` |
+| `text` | Text element | `x`, `y`, `text`, `fontSize`, `fontWeight`, `fill`, `opacity` |
+| `path` | SVG path | `x`, `y`, `d`, `fill`, `stroke`, `opacity` |
+| `line` | Line | `x1`, `y1`, `x2`, `y2`, `stroke`, `strokeWidth` |
+| `group` | Container | `x`, `y`, `scale`, `rotation`, `opacity`, `children` |
+| `connectionArrow` | Smart arrow | `startTarget`, `endTarget`, `startAnchor`, `endAnchor` |
 
 ---
 
-### Keyframes
+### Coordinate System
 
-Keyframes define property values at specific frames. The engine interpolates between them.
+All coordinates are **percentages (0-100)** of canvas dimensions:
 
 ```javascript
-keyframes: [
-    { 
-        frame: 0,   // Starting frame
-        value: {    // Properties at this frame
-            x: 0, 
-            y: 100, 
-            opacity: 0,
-            fill: '#ef4444'
-        } 
-    },
-    { 
-        frame: 60,  // Ending frame (1 second at 60fps)
-        value: { 
-            x: 200, 
-            y: 100, 
-            opacity: 1,
-            fill: '#10b981'
-        } 
-    }
-]
+props: {
+    x: 50,    // Center horizontally (50%)
+    y: 25,    // 25% from top
+    width: 20, // 20% of canvas width
+    height: 10 // 10% of canvas height
+}
 ```
-
-#### Common Keyframe Properties
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `x`, `y` | number | Position coordinates |
-| `opacity` | number | Transparency (0-1) |
-| `fill` | string | Fill color (hex) |
-| `stroke` | string | Stroke color (hex) |
-| `strokeWidth` | number | Stroke width |
-| `fontSize` | number | Text font size |
-| `fontWeight` | string | Text weight (`normal`, `bold`) |
-| `textAnchor` | string | Text alignment (`start`, `middle`, `end`) |
 
 > [!TIP]
-> At **60 fps**: 60 frames = 1 second, 30 frames = 0.5 seconds
+> Canvas resolution is **3840×2400** (4K 16:10). Previews render at 0.5x, exports at 1.0x.
 
 ---
 
-### Easing Functions
+### Z-Depth (Pseudo-3D)
 
-Available easing functions from `shared/js/utils/animation.js`:
+Use the `z` property for depth effects:
 
 ```javascript
-import { 
-    easeOutCubic,    // Fast start, slow end
-    easeInOutCubic,  // Slow start and end
-    easeOutQuad,     // Quadratic ease out
-    easeInQuad       // Quadratic ease in
-} from '../../shared/js/utils/animation.js';
-
-// Apply to a layer
-new Layer({...}).setEasing(easeOutCubic);
+props: {
+    z: 20,   // Closer (larger), scale = 1.20
+    z: 0,    // Neutral
+    z: -30   // Farther (smaller), scale = 0.70, slight opacity reduction
+}
 ```
+
+---
+
+### Groups
+
+Groups transform children together:
+
+```javascript
+{
+    id: 'service-box',
+    type: 'group',
+    props: {
+        x: 25, y: 50,
+        scale: 1,
+        rotation: 0,
+        shadow: { blur: 20, color: 'rgba(0,0,0,0.3)' }
+    },
+    children: [
+        { type: 'rect', props: { width: 15, height: 10, fill: '#3b82f6', rx: 8 } },
+        { type: 'text', props: { y: 0, text: 'API Server', fontSize: 14, fill: '#fff' } }
+    ]
+}
+```
+
+---
+
+### Connection Arrows
+
+Smart arrows that connect to target objects:
+
+```javascript
+{
+    id: 'arrow-1',
+    type: 'connectionArrow',
+    props: {
+        startTarget: 'box-a',      // ID of source object
+        endTarget: 'box-b',        // ID of destination object
+        startAnchor: 'right',      // 'top' | 'bottom' | 'left' | 'right' | 'center'
+        endAnchor: 'left',
+        stroke: '#2196F3',
+        strokeWidth: 2,
+        curve: 0.2                 // Bezier curve amount
+    }
+}
+```
+
+---
+
+### Shadows
+
+Add shadows to any object:
+
+```javascript
+props: {
+    shadow: {
+        blur: 20,
+        color: 'rgba(76, 175, 80, 0.4)',
+        offset: { x: 0, y: 10 }
+    }
+}
+```
+
+---
+
+### Common Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `x`, `y` | number | 0 | Position (0-100%) |
+| `width`, `height` | number | 100 | Size (0-100%) |
+| `opacity` | number | 1 | Transparency (0-1) |
+| `scale` | number | 1 | Scale factor |
+| `rotation` | number | 0 | Rotation in degrees |
+| `z` | number | 0 | Depth (affects scale) |
+| `zIndex` | number | 0 | Render order |
+| `fill` | string | `'#000'` | Fill color |
+| `stroke` | string | - | Stroke color |
+| `strokeWidth` | number | 1 | Stroke width |
 
 ---
 
