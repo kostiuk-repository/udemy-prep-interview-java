@@ -77,16 +77,28 @@
    TOP NAVIGATION
    ========================================================================== */
 
-.top-nav {
-    position: sticky;
+/* Container that holds the nav - needs to reserve space */
+#topNav {
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
+    z-index: var(--z-nav);
+}
+
+.top-nav {
     background: var(--bg-section);
     padding: var(--spacing-md) var(--spacing-xl);
-    z-index: var(--z-nav);
     box-shadow: var(--shadow-md);
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+/* Add padding to body to account for fixed header */
+body {
+    padding-top: 70px;
+    /* Approximate header height */
 }
 
 .nav-left {
