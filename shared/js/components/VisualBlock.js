@@ -117,10 +117,11 @@ export const VisualBlock = {
             canvas = document.createElement('canvas');
             canvas.className = 'visual-canvas';
             canvas.style.cssText = `
-                width: 100%;
-                height: 100%;
+                max-width: 100%;
+                max-height: 100%;
+                width: auto;
+                height: auto;
                 display: block;
-                object-fit: contain;
             `;
             wrapper.appendChild(canvas);
         }

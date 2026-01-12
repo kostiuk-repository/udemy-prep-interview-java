@@ -475,7 +475,7 @@ body {
     aspect-ratio: 16 / 10;
     position: relative;
     overflow: hidden;
-    border: 2px solid #334155;
+    border: none;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
 }
 
@@ -592,7 +592,8 @@ body {
     border-radius: var(--radius-lg);
     font-family: var(--font-mono);
     line-height: var(--line-height-loose);
-    white-space: pre-wrap;
+    white-space: normal;
+    word-wrap: break-word;
     margin-bottom: var(--spacing-md);
     font-size: var(--font-size-sm);
 }
@@ -603,7 +604,7 @@ body {
     border-left: 3px solid var(--success);
     padding: var(--spacing-xs) var(--spacing-sm);
     margin: var(--spacing-xs) 0;
-    display: inline;
+    display: inline-block;
     border-radius: var(--radius-sm);
     animation: syncPulse 1.5s ease-in-out infinite;
     transition: all var(--transition-normal);
