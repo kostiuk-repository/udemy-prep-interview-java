@@ -186,16 +186,17 @@ export class VideoExporter {
                 // Get the computed state for this frame
                 const state = engine.getCurrentState();
 
-                // Log every 10th frame for debugging
-                if (frame % 10 === 0) {
-                    console.log(`Frame ${frame}/${animationFrames}: objects=${state.length}, step=${engine.currentStepIndex}`);
+                // Log every 30th frame for debugging
+                if (frame % 30 === 0) {
+                    console.log(`Frame ${frame}/${animationFrames}: objects=${state?.size || 0}, step=${engine.currentStepIndex}`);
                 }
 
                 // Render to canvas
                 renderer.render(state, { background: scene.background });
 
-                // Wait for frame interval
-                await new Promise(r => setTimeout(r, frameInterval));
+                // Minimal yield to let browser process (NOT real-time delay)
+                // The captureStream handles timing based on FPS setting
+                await new Promise(r => setTimeout(r, 1));
 
                 // Report progress
                 if (onProgress) onProgress(frame + 1, totalFrames);
@@ -208,7 +209,7 @@ export class VideoExporter {
                 if (!this.isRecording) break;
                 const state = engine.getCurrentState();
                 renderer.render(state, { background: scene.background });
-                await new Promise(r => setTimeout(r, frameInterval));
+                await new Promise(r => setTimeout(r, 1));
                 if (onProgress) onProgress(animationFrames + h + 1, totalFrames);
             }
 

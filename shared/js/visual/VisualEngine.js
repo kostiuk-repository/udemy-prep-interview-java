@@ -213,6 +213,7 @@ export class StateBasedEngine {
 
     /**
      * Seek to a specific frame (for video export)
+     * Directly computes the interpolated state for the given frame.
      * @param {number} frame - Frame number
      */
     seekToFrame(frame) {
@@ -233,28 +234,31 @@ export class StateBasedEngine {
                 // Frame is within this step's transition
                 const progress = (frame - frameCount) / stepFrames;
 
-                // Debug logging (every 20 frames)
-                if (frame % 20 === 0) {
-                    console.log(`seekToFrame(${frame}): step=${i}, progress=${progress.toFixed(2)}, stepFrames=${stepFrames}`);
+                // Debug logging (reduced frequency)
+                if (frame % 60 === 0) {
+                    console.log(`seekToFrame(${frame}): step=${i}, progress=${progress.toFixed(2)}`);
                 }
 
-                if (this.currentStepIndex !== i || !this._targetState) {
-                    // Need to set up transition to this step
-                    const prevIndex = Math.max(0, i - 1);
+                // Determine the previous step (for interpolation source)
+                const prevStepIndex = i > 0 ? i - 1 : 0;
+                const prevStep = this.scene.steps[prevStepIndex];
 
-                    if (frame % 20 === 0) {
-                        console.log(`  -> Setting up transition: prevStep=${prevIndex}, targetStep=${i}`);
-                    }
+                // Build states for interpolation
+                const fromState = this._buildStateFromStep(prevStep);
+                const toState = this._buildStateFromStep(step);
 
-                    this.previousState = this._buildStateFromStep(this.scene.steps[prevIndex]);
-                    this._targetState = this._buildStateFromStep(step);
-                    this._detectObjectChanges(this._targetState);
-                    this.currentStepIndex = prevIndex;
-                    this.targetStepIndex = i;
+                // For step 0, we transition from nothing to the first step
+                // For other steps, we interpolate from previous step to current
+                if (i === 0) {
+                    // First step: just progress into this step
+                    // Objects fade in from 0 opacity
+                    this._computeDirectState(fromState, toState, progress, true);
+                } else {
+                    // Transition between steps
+                    this._computeDirectState(fromState, toState, progress, false);
                 }
 
-                this.animationProgress = progress;
-                this._updateInterpolatedState();
+                this.currentStepIndex = i;
                 return;
             }
 
@@ -265,9 +269,49 @@ export class StateBasedEngine {
     }
 
     /**
-     * Get total frames for the entire scene
-     * @returns {number}
+     * Directly compute interpolated state for video export
+     * @private
      */
+    _computeDirectState(fromState, toState, progress, isFirstStep) {
+        const easedProgress = this.easingFn ? this.easingFn(progress) : progress;
+        const newState = new Map();
+
+        // Get all object IDs from both states
+        const allIds = new Set([...fromState.keys(), ...toState.keys()]);
+
+        for (const id of allIds) {
+            const fromProps = fromState.get(id);
+            const toProps = toState.get(id);
+
+            if (fromProps && toProps) {
+                // Object exists in both states - interpolate
+                newState.set(id, this._interpolateProps(fromProps, toProps, easedProgress));
+            } else if (toProps && !fromProps) {
+                // New object - fade in
+                const interpolated = { ...toProps };
+                if (isFirstStep) {
+                    interpolated.opacity = lerp(0, toProps.opacity ?? 1, easedProgress);
+                } else {
+                    interpolated.opacity = lerp(0, toProps.opacity ?? 1, easedProgress);
+                }
+                newState.set(id, interpolated);
+            } else if (fromProps && !toProps) {
+                // Removed object - fade out
+                const interpolated = { ...fromProps };
+                interpolated.opacity = lerp(fromProps.opacity ?? 1, 0, easedProgress);
+                if (interpolated.opacity > 0.01) {
+                    newState.set(id, interpolated);
+                }
+            }
+        }
+
+        this.currentState = newState;
+    }
+
+    /**
+ * Get total frames for the entire scene
+ * @returns {number}
+ */
     getTotalFrames() {
         if (!this.scene?.steps) return 0;
 
