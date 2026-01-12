@@ -62,6 +62,9 @@ class TimelineClass {
         const progressCount = this.state.completed.size;
         const totalCount = this.state.sections.length;
 
+        // Add timeline-sidebar class to container
+        this.container.classList.add('timeline-sidebar');
+
         this.container.innerHTML = `
             <div class="sidebar-header">
                 <h3>📋 Timeline</h3>

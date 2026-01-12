@@ -414,31 +414,60 @@ export const VisualBlock = {
     },
 
     /**
-     * Convert SVG to PNG
+     * Convert SVG to PNG at 4K resolution with transparent background
      * @private
      */
     async _svgToPNG(svg, filename) {
-        const svgData = new XMLSerializer().serializeToString(svg);
+        // 4K resolution
+        const OUTPUT_WIDTH = 3840;
+        const OUTPUT_HEIGHT = 2160;
+
+        // Get SVG dimensions
+        const viewBox = svg.getAttribute('viewBox');
+        let svgWidth = 800, svgHeight = 600;
+        if (viewBox) {
+            const parts = viewBox.split(' ');
+            svgWidth = parseFloat(parts[2]) || 800;
+            svgHeight = parseFloat(parts[3]) || 600;
+        } else {
+            svgWidth = svg.clientWidth || svg.getAttribute('width') || 800;
+            svgHeight = svg.clientHeight || svg.getAttribute('height') || 600;
+        }
+
+        // Clone SVG and set explicit dimensions for 4K export
+        const svgClone = svg.cloneNode(true);
+        svgClone.setAttribute('width', OUTPUT_WIDTH);
+        svgClone.setAttribute('height', OUTPUT_HEIGHT);
+
+        const svgData = new XMLSerializer().serializeToString(svgClone);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
 
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = svg.clientWidth || 800;
-            canvas.height = svg.clientHeight || 600;
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = OUTPUT_WIDTH;
+                canvas.height = OUTPUT_HEIGHT;
 
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
+                const ctx = canvas.getContext('2d');
+                // Transparent background - do NOT fill with white
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
 
-            canvas.toBlob(blob => {
-                this._downloadBlob(blob, filename);
+                canvas.toBlob(blob => {
+                    this._downloadBlob(blob, filename);
+                    URL.revokeObjectURL(url);
+                    resolve();
+                }, 'image/png');
+            };
+            img.onerror = () => {
                 URL.revokeObjectURL(url);
-            });
-        };
-        img.src = url;
+                console.error('VisualBlock: Failed to load SVG for PNG export');
+                resolve();
+            };
+            img.src = url;
+        });
     },
 
     /**

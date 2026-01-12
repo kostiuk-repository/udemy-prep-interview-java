@@ -192,9 +192,20 @@ class LessonCoreClass {
      */
     _setupEventListeners() {
         // TopNav menu toggle -> Timeline toggle
-        EventBus.on(Events.MENU_TOGGLE, () => {
+        EventBus.on(Events.MENU_TOGGLE, ({ open }) => {
             if (this.components.timeline) {
-                Timeline.toggle();
+                if (open) {
+                    Timeline.open();
+                } else {
+                    Timeline.close();
+                }
+            }
+        });
+
+        // Timeline closed -> Sync burger menu state
+        EventBus.on(Events.TIMELINE_CLOSED, () => {
+            if (this.components.topNav) {
+                TopNav.setMenuOpen(false);
             }
         });
 
