@@ -49,241 +49,15 @@ export class VideoExporter {
     async renderVideo(scene, options = {}) {
         const { onProgress, holdFrames = 30 } = options;
 
-        // Check WebCodecs support
-        if (!this._supportsWebCodecs()) {
-            console.warn('WebCodecs not supported, falling back to MediaRecorder');
-            return this._renderVideoFallback(scene, options);
-        }
-
-        // Create offscreen canvas and renderer
-        const canvas = new OffscreenCanvas(this.width, this.height);
-        const renderer = new CanvasRenderer(canvas, { scale: 1.0 });
-
-        // Create engine
-        const engine = new StateBasedEngine({
-            width: this.width,
-            height: this.height,
-            fps: this.fps
-        });
-        engine.loadScene(scene);
-        renderer.setEngine(engine);
-
-        // Calculate total frames
-        const totalFrames = this._calculateTotalFrames(scene, holdFrames);
-
-        // Initialize encoder
-        await this._initEncoder();
-
-        this.isRecording = true;
-
-        try {
-            let frameIndex = 0;
-
-            for (let stepIndex = 0; stepIndex < scene.steps.length; stepIndex++) {
-                const step = scene.steps[stepIndex];
-                const stepDuration = step.duration ?? scene.duration ?? 1000;
-                const transitionFrames = Math.ceil((stepDuration / 1000) * this.fps);
-
-                // Render transition frames
-                for (let f = 0; f < transitionFrames; f++) {
-                    // Calculate progress within transition
-                    const progress = f / transitionFrames;
-
-                    // Update engine to this point in the transition
-                    if (stepIndex > 0) {
-                        const prevStep = scene.steps[stepIndex - 1];
-                        engine.previousState = engine._buildStateFromStep(prevStep);
-                    }
-                    engine._targetState = engine._buildStateFromStep(step);
-                    engine._detectObjectChanges(engine._targetState);
-                    engine.animationProgress = progress;
-                    engine._updateInterpolatedState();
-
-                    // Render frame
-                    const state = engine.getCurrentState();
-                    renderer.render(state, { background: scene.background });
-
-                    // Encode frame with explicit timestamp
-                    await this._encodeFrame(canvas, frameIndex);
-
-                    frameIndex++;
-
-                    // Report progress
-                    if (onProgress) {
-                        onProgress(frameIndex, totalFrames);
-                    }
-
-                    // Yield to main thread
-                    await this._yield();
-                }
-
-                // Hold on step
-                for (let h = 0; h < holdFrames; h++) {
-                    await this._encodeFrame(canvas, frameIndex);
-                    frameIndex++;
-
-                    if (onProgress) {
-                        onProgress(frameIndex, totalFrames);
-                    }
-
-                    await this._yield();
-                }
-            }
-
-            // Finalize and return blob
-            return await this._finalize();
-
-        } finally {
-            this.isRecording = false;
-        }
-    }
-
-    /**
-     * Check if WebCodecs API is supported
-     * @private
-     */
-    _supportsWebCodecs() {
-        return typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined';
-    }
-
-    /**
-     * Initialize the video encoder
-     * @private
-     */
-    async _initEncoder() {
-        this.chunks = [];
-
-        const config = {
-            codec: 'vp09.00.10.08', // VP9 with alpha
-            width: this.width,
-            height: this.height,
-            bitrate: this.bitrate,
-            framerate: this.fps,
-            alpha: 'keep' // Preserve alpha channel
-        };
-
-        // Check if codec is supported
-        const support = await VideoEncoder.isConfigSupported(config);
-        if (!support.supported) {
-            // Fallback to VP9 without alpha
-            config.codec = 'vp09.00.10.08';
-            delete config.alpha;
-        }
-
-        this.encoder = new VideoEncoder({
-            output: (chunk, metadata) => {
-                this.chunks.push({ chunk, metadata });
-            },
-            error: (error) => {
-                console.error('VideoEncoder error:', error);
-            }
-        });
-
-        this.encoder.configure(config);
-    }
-
-    /**
-     * Encode a single frame
-     * @private
-     * @param {OffscreenCanvas} canvas
-     * @param {number} frameIndex
-     */
-    async _encodeFrame(canvas, frameIndex) {
-        // Create VideoFrame with explicit timestamp in microseconds
-        const timestamp = frameIndex * (1000000 / this.fps);
-
-        const frame = new VideoFrame(canvas, {
-            timestamp: timestamp,
-            alpha: 'keep'
-        });
-
-        // Encode frame
-        this.encoder.encode(frame, { keyFrame: frameIndex % 60 === 0 });
-        frame.close();
-    }
-
-    /**
-     * Finalize encoding and create WebM blob
-     * @private
-     * @returns {Promise<Blob>}
-     */
-    async _finalize() {
-        // Flush remaining frames
-        await this.encoder.flush();
-        this.encoder.close();
-
-        // Create WebM blob from chunks
-        // Note: WebCodecs outputs raw encoded frames, we need to mux them into WebM
-        // Using a simple approach: concatenate chunk data
-        const blob = await this._muxToWebM();
-
-        return blob;
-    }
-
-    /**
-     * Mux encoded chunks to WebM format
-     * @private
-     * @returns {Promise<Blob>}
-     */
-    async _muxToWebM() {
-        // Simple WebM muxing (basic implementation)
-        // For production, consider using a library like webm-writer or mux.js
-
-        const chunkData = [];
-        for (const { chunk } of this.chunks) {
-            const data = new Uint8Array(chunk.byteLength);
-            chunk.copyTo(data);
-            chunkData.push(data);
-        }
-
-        // Combine all chunks
-        const totalLength = chunkData.reduce((sum, arr) => sum + arr.length, 0);
-        const combined = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const data of chunkData) {
-            combined.set(data, offset);
-            offset += data.length;
-        }
-
-        // Create blob (note: proper WebM header would be needed for full compatibility)
-        return new Blob([combined], { type: 'video/webm; codecs=vp9' });
-    }
-
-    /**
-     * Yield to main thread to prevent UI freeze
-     * @private
-     */
-    _yield() {
-        return new Promise(resolve => setTimeout(resolve, 0));
-    }
-
-    /**
-     * Calculate total frames for entire scene
-     * @private
-     */
-    _calculateTotalFrames(scene, holdFrames) {
-        let total = 0;
-
-        for (const step of scene.steps) {
-            const stepDuration = step.duration ?? scene.duration ?? 1000;
-            const transitionFrames = Math.ceil((stepDuration / 1000) * this.fps);
-            total += transitionFrames + holdFrames;
-        }
-
-        return total;
-    }
-
-    /**
-     * Fallback: Use MediaRecorder for browsers without WebCodecs
-     * @private
-     */
-    async _renderVideoFallback(scene, options = {}) {
-        const { onProgress, holdFrames = 30 } = options;
-
+        // Create canvas and renderer
         const canvas = document.createElement('canvas');
         canvas.width = this.width;
         canvas.height = this.height;
 
+        // Context for rendering
+        const ctx = canvas.getContext('2d');
+
+        // StateBasedEngine initialization
         const renderer = new CanvasRenderer(canvas, { scale: 1.0 });
         const engine = new StateBasedEngine({
             width: this.width,
@@ -293,39 +67,53 @@ export class VideoExporter {
         engine.loadScene(scene);
         renderer.setEngine(engine);
 
-        const totalFrames = this._calculateTotalFrames(scene, holdFrames);
+        // Determine supported mime type
+        let mimeType = 'video/webm; codecs=vp9';
+        if (MediaRecorder.isTypeSupported('video/mp4; codecs=avc1.4d002a')) {
+            mimeType = 'video/mp4; codecs=avc1.4d002a';
+        } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+            mimeType = 'video/mp4';
+        }
 
-        // Use MediaRecorder
+        console.log(`VideoExporter: Using MIME type ${mimeType}`);
+
+        // Create stream and recorder
         const stream = canvas.captureStream(this.fps);
         const recorder = new MediaRecorder(stream, {
-            mimeType: 'video/webm; codecs=vp9',
+            mimeType: mimeType,
             videoBitsPerSecond: this.bitrate
         });
 
         const chunks = [];
         recorder.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-                chunks.push(e.data);
-            }
+            if (e.data.size > 0) chunks.push(e.data);
         };
 
-        return new Promise(async (resolve) => {
+        const recordingPromise = new Promise(resolve => {
             recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
+                const blob = new Blob(chunks, { type: mimeType });
                 resolve(blob);
             };
+        });
 
-            recorder.start();
+        // Start recording
+        recorder.start();
+        this.isRecording = true;
 
-            let frameIndex = 0;
+        try {
+            const totalFrames = this._calculateTotalFrames(scene, holdFrames);
             const frameInterval = 1000 / this.fps;
+            let frameIndex = 0;
 
+            // Render Loop
             for (let stepIndex = 0; stepIndex < scene.steps.length; stepIndex++) {
+                if (!this.isRecording) break;
+
                 const step = scene.steps[stepIndex];
                 const stepDuration = step.duration ?? scene.duration ?? 1000;
                 const transitionFrames = Math.ceil((stepDuration / 1000) * this.fps);
 
-                // Transition frames
+                // Transition
                 for (let f = 0; f < transitionFrames; f++) {
                     const progress = f / transitionFrames;
 
@@ -335,26 +123,64 @@ export class VideoExporter {
                     engine._targetState = engine._buildStateFromStep(step);
                     engine._detectObjectChanges(engine._targetState);
                     engine.animationProgress = progress;
-                    engine._updateInterpolatedState();
 
-                    renderer.render(engine.getCurrentState(), { background: scene.background });
+                    // Important: Update engine time
+                    engine.update(frameInterval);
+
+                    // Render
+                    const state = engine.getCurrentState();
+                    renderer.render(state, { background: scene.background }); // Keep transparency for video
+
+                    // Sync wait to match FPS
+                    await new Promise(r => setTimeout(r, frameInterval));
 
                     frameIndex++;
                     if (onProgress) onProgress(frameIndex, totalFrames);
-
-                    await new Promise(r => setTimeout(r, frameInterval));
                 }
 
-                // Hold frames
+                // Hold
                 for (let h = 0; h < holdFrames; h++) {
+                    if (!this.isRecording) break;
+
+                    // Just re-render same state or let stream capture (but forcing render ensures stream updates)
+                    // renderer.render(engine.getCurrentState(), { background: scene.background }); 
+                    // Actually, for captureStream to pick up, we technically just need to wait, 
+                    // but redrawing ensures the stream sees a "new" frame if the browser dedupes identical frames.
+                    // Doing a dummy draw or small pixel change can help, but usually redrawing is enough.
+                    const state = engine.getCurrentState();
+                    renderer.render(state, { background: scene.background });
+
+                    await new Promise(r => setTimeout(r, frameInterval));
+
                     frameIndex++;
                     if (onProgress) onProgress(frameIndex, totalFrames);
-                    await new Promise(r => setTimeout(r, frameInterval));
                 }
             }
 
             recorder.stop();
-        });
+            return await recordingPromise;
+
+        } catch (err) {
+            console.error('Export failed', err);
+            recorder.stop();
+            throw err;
+        } finally {
+            this.isRecording = false;
+        }
+    }
+
+    /**
+     * Calculate total frames for entire scene
+     * @private
+     */
+    _calculateTotalFrames(scene, holdFrames) {
+        let total = 0;
+        for (const step of scene.steps) {
+            const stepDuration = step.duration ?? scene.duration ?? 1000;
+            const transitionFrames = Math.ceil((stepDuration / 1000) * this.fps);
+            total += transitionFrames + holdFrames;
+        }
+        return total;
     }
 
     /**
@@ -362,10 +188,6 @@ export class VideoExporter {
      */
     cancel() {
         this.isRecording = false;
-        if (this.encoder) {
-            this.encoder.close();
-            this.encoder = null;
-        }
     }
 }
 
