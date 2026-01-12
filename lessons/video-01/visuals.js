@@ -1,11 +1,46 @@
 /**
  * Lesson Visuals - Video 01: Why You Keep Failing Interviews
  * State-Based Animation Scenes
+ * 
+ * Modern Dark Mode / Product UI Design
+ * Color Palette: Slate/Inter theme
+ * - Background: #0f172a (darkest)
+ * - Cards: #1e293b with #334155 border
+ * - Accents: #38bdf8 (Blue), #f43f5e (Rose), #10b981 (Emerald)
  */
+
+// ==========================================================================
+// COLOR PALETTE
+// ==========================================================================
+
+const COLORS = {
+    bg: {
+        dark: '#0f172a',
+        card: '#1e293b',
+        cardLight: '#334155',
+        overlay: 'rgba(15, 23, 42, 0.9)'
+    },
+    accent: {
+        blue: '#38bdf8',
+        rose: '#f43f5e',
+        emerald: '#10b981',
+        amber: '#f59e0b',
+        violet: '#8b5cf6',
+        cyan: '#22d3ee'
+    },
+    text: {
+        primary: '#f8fafc',
+        secondary: '#94a3b8',
+        muted: '#64748b'
+    }
+};
+
+// Standard shadow for depth
+const SHADOW = { blur: 40, color: 'rgba(0, 0, 0, 0.5)', offset: { x: 0, y: 20 } };
+const SHADOW_GLOW = (color) => ({ blur: 60, color: color, offset: { x: 0, y: 0 } });
 
 /**
  * Create all visual scenes for this lesson
- * @returns {Object} Map of visualId to Scene definition
  */
 export function createVisuals() {
     return {
@@ -19,111 +54,236 @@ export function createVisuals() {
 }
 
 // ==========================================================================
-// HOOK SECTION - LeetCode to Interview Transition
+// HOOK SECTION - Code Window with Progress Bar
 // ==========================================================================
 
 export const hookTransitionScene = {
     id: 'hook-transition',
     duration: 800,
-    background: '#1a1a2e',
+    background: COLORS.bg.dark,
 
     steps: [
-        // Step 1: "300+ Problems Solved" 
+        // Step 1: Code window appears with "300+ Problems Solved"
         {
             id: 'step1',
-            duration: 600,
+            duration: 800,
             objects: [
+                // Window Frame
                 {
-                    id: 'leetcode-count',
-                    type: 'text',
+                    id: 'code-window',
+                    type: 'group',
                     props: {
-                        x: 50, y: 35,
-                        text: '300+',
-                        fontSize: 72,
-                        fontWeight: 'bold',
-                        fill: '#10b981',
-                        opacity: 1
+                        x: 50, y: 50,
+                        z: 0,
+                        opacity: 1,
+                        shadow: SHADOW
+                    },
+                    children: [
+                        // Window background
+                        {
+                            id: 'window-bg',
+                            type: 'rect',
+                            props: {
+                                x: 0, y: 0,
+                                width: 50, height: 35,
+                                fill: COLORS.bg.card,
+                                stroke: COLORS.bg.cardLight,
+                                strokeWidth: 2,
+                                rx: 12
+                            }
+                        },
+                        // Title bar
+                        {
+                            id: 'title-bar',
+                            type: 'rect',
+                            props: {
+                                x: 0, y: -14,
+                                width: 50, height: 6,
+                                fill: COLORS.bg.cardLight,
+                                rx: 0
+                            }
+                        },
+                        // macOS buttons
+                        {
+                            id: 'btn-close',
+                            type: 'circle',
+                            props: { x: -20, y: -14, radius: 1.2, fill: COLORS.accent.rose }
+                        },
+                        {
+                            id: 'btn-min',
+                            type: 'circle',
+                            props: { x: -16, y: -14, radius: 1.2, fill: COLORS.accent.amber }
+                        },
+                        {
+                            id: 'btn-max',
+                            type: 'circle',
+                            props: { x: -12, y: -14, radius: 1.2, fill: COLORS.accent.emerald }
+                        }
+                    ]
+                },
+                // Progress bar (LeetCode progress)
+                {
+                    id: 'progress-bg',
+                    type: 'rect',
+                    props: {
+                        x: 50, y: 42,
+                        width: 40, height: 2,
+                        fill: COLORS.bg.cardLight,
+                        rx: 4,
+                        z: 1
                     }
                 },
                 {
-                    id: 'leetcode-label',
+                    id: 'progress-fill',
+                    type: 'rect',
+                    props: {
+                        x: 35, y: 42,
+                        width: 30, height: 2,
+                        fill: COLORS.accent.emerald,
+                        rx: 4,
+                        z: 2,
+                        shadow: SHADOW_GLOW('rgba(16, 185, 129, 0.4)')
+                    }
+                },
+                // Counter text
+                {
+                    id: 'counter',
                     type: 'text',
                     props: {
-                        x: 50, y: 45,
-                        text: 'Problems Solved',
-                        fontSize: 24,
-                        fill: '#64748b',
-                        opacity: 1
+                        x: 50, y: 50,
+                        text: '300+',
+                        fontSize: 120,
+                        fontWeight: 'bold',
+                        fill: COLORS.accent.emerald,
+                        z: 3,
+                        shadow: SHADOW_GLOW('rgba(16, 185, 129, 0.3)')
+                    }
+                },
+                {
+                    id: 'subtitle',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 62,
+                        text: 'LeetCode Problems Solved',
+                        fontSize: 36,
+                        fill: COLORS.text.secondary
                     }
                 }
             ]
         },
 
-        // Step 2: Interview question appears
+        // Step 2: Interview question appears, code window shrinks
         {
             id: 'step2',
             duration: 800,
             objects: [
                 {
-                    id: 'leetcode-count',
-                    props: { y: 25, opacity: 0.5 }
+                    id: 'code-window',
+                    props: { y: 30, scale: 0.6, opacity: 0.5, z: -2 }
                 },
+                { id: 'progress-bg', props: { y: 28, opacity: 0.3 } },
+                { id: 'progress-fill', props: { y: 28, opacity: 0.3 } },
+                { id: 'counter', props: { y: 30, opacity: 0.4, scale: 0.5 } },
+                { id: 'subtitle', props: { y: 38, opacity: 0.3 } },
+                // Interview card
                 {
-                    id: 'leetcode-label',
-                    props: { y: 35, opacity: 0.5 }
+                    id: 'interview-card',
+                    type: 'rect',
+                    props: {
+                        x: 50, y: 65,
+                        width: 55, height: 20,
+                        fill: COLORS.bg.card,
+                        stroke: COLORS.accent.rose,
+                        strokeWidth: 2,
+                        rx: 12,
+                        z: 5,
+                        shadow: SHADOW
+                    }
                 },
                 {
                     id: 'interview-icon',
                     type: 'text',
                     props: {
-                        x: 50, y: 55,
+                        x: 28, y: 65,
                         text: '❌',
                         fontSize: 48,
-                        opacity: 1
+                        z: 6
                     }
                 },
                 {
-                    id: 'interview-question',
+                    id: 'interview-text',
                     type: 'text',
                     props: {
-                        x: 50, y: 68,
-                        text: '"Design a payment system..."',
-                        fontSize: 20,
-                        fill: '#ef4444',
-                        opacity: 1
+                        x: 55, y: 63,
+                        text: '"Design a payment system',
+                        fontSize: 28,
+                        fill: COLORS.text.primary,
+                        z: 6
+                    }
+                },
+                {
+                    id: 'interview-text2',
+                    type: 'text',
+                    props: {
+                        x: 55, y: 70,
+                        text: 'handling 10k TPS..."',
+                        fontSize: 28,
+                        fill: COLORS.accent.rose,
+                        z: 6
                     }
                 }
             ]
         },
 
-        // Step 3: "Both Sides" reveal
+        // Step 3: Reveal "Both Sides" insight
         {
             id: 'step3',
             duration: 600,
             objects: [
-                { id: 'leetcode-count', props: { y: 15, opacity: 0.3 } },
-                { id: 'leetcode-label', props: { y: 25, opacity: 0.3 } },
-                { id: 'interview-icon', props: { y: 45, opacity: 0.6 } },
-                { id: 'interview-question', props: { y: 55, opacity: 0.6 } },
+                { id: 'code-window', props: { y: 20, scale: 0.4, opacity: 0.2, z: -5 } },
+                { id: 'progress-bg', props: { opacity: 0 } },
+                { id: 'progress-fill', props: { opacity: 0 } },
+                { id: 'counter', props: { y: 20, opacity: 0.2, scale: 0.3 } },
+                { id: 'subtitle', props: { opacity: 0 } },
+                { id: 'interview-card', props: { y: 45, opacity: 0.5, z: 0 } },
+                { id: 'interview-icon', props: { y: 45, opacity: 0.4 } },
+                { id: 'interview-text', props: { y: 43, opacity: 0.4 } },
+                { id: 'interview-text2', props: { y: 50, opacity: 0.4 } },
+                // Insight card
                 {
-                    id: 'both-sides-icon',
-                    type: 'text',
+                    id: 'insight-card',
+                    type: 'rect',
                     props: {
-                        x: 50, y: 75,
-                        text: '💡',
-                        fontSize: 36,
-                        opacity: 1
+                        x: 50, y: 72,
+                        width: 50, height: 18,
+                        fill: COLORS.bg.card,
+                        stroke: COLORS.accent.blue,
+                        strokeWidth: 2,
+                        rx: 12,
+                        z: 10,
+                        shadow: SHADOW_GLOW('rgba(56, 189, 248, 0.3)')
                     }
                 },
                 {
-                    id: 'both-sides-text',
+                    id: 'insight-icon',
                     type: 'text',
                     props: {
-                        x: 50, y: 88,
+                        x: 30, y: 72,
+                        text: '💡',
+                        fontSize: 42,
+                        z: 11
+                    }
+                },
+                {
+                    id: 'insight-text',
+                    type: 'text',
+                    props: {
+                        x: 55, y: 72,
                         text: "I've Been On Both Sides",
-                        fontSize: 18,
-                        fill: '#2563eb',
-                        opacity: 1
+                        fontSize: 32,
+                        fontWeight: 'bold',
+                        fill: COLORS.accent.blue,
+                        z: 11
                     }
                 }
             ]
@@ -132,335 +292,510 @@ export const hookTransitionScene = {
 };
 
 // ==========================================================================
-// PIE CHART - The 30/70 Split
+// DONUT CHART - The 30/70 Split with Glow
 // ==========================================================================
 
 export const pieChartScene = {
     id: 'pie-chart',
     duration: 1000,
-    background: '#1a1a2e',
+    background: COLORS.bg.dark,
 
     steps: [
-        // Step 1: 30% slice appears
+        // Step 1: 30% segment glows
         {
             id: 'step1',
             duration: 800,
             objects: [
+                // Donut ring (background)
                 {
-                    id: 'slice-30',
+                    id: 'donut-bg',
+                    type: 'circle',
+                    props: {
+                        x: 40, y: 50,
+                        radius: 18,
+                        fill: 'transparent',
+                        stroke: COLORS.bg.cardLight,
+                        strokeWidth: 8,
+                        z: 0
+                    }
+                },
+                // 30% arc (emerald)
+                {
+                    id: 'arc-30',
                     type: 'path',
                     props: {
-                        x: 50, y: 50,
-                        d: createPieSlicePath(0, 0, 15, -90, 18),
-                        fill: '#10b981',
-                        opacity: 1,
-                        zIndex: 2
+                        x: 40, y: 50,
+                        d: createArcPath(18, -90, 18), // 30% = 108 degrees, but 30/100*360 = 108. Let's use 30% as approx 18 deg offset
+                        fill: 'transparent',
+                        stroke: COLORS.accent.emerald,
+                        strokeWidth: 8,
+                        z: 2,
+                        shadow: SHADOW_GLOW('rgba(16, 185, 129, 0.5)')
+                    }
+                },
+                // Label card
+                {
+                    id: 'label-30-card',
+                    type: 'rect',
+                    props: {
+                        x: 72, y: 35,
+                        width: 22, height: 12,
+                        fill: COLORS.bg.card,
+                        stroke: COLORS.accent.emerald,
+                        strokeWidth: 2,
+                        rx: 8,
+                        z: 3
                     }
                 },
                 {
-                    id: 'label-30',
+                    id: 'label-30-pct',
                     type: 'text',
                     props: {
-                        x: 62, y: 30,
+                        x: 72, y: 33,
                         text: '30%',
-                        fontSize: 24,
+                        fontSize: 36,
                         fontWeight: 'bold',
-                        fill: '#10b981',
-                        opacity: 1
+                        fill: COLORS.accent.emerald,
+                        z: 4
                     }
                 },
                 {
                     id: 'label-30-desc',
                     type: 'text',
                     props: {
-                        x: 62, y: 38,
-                        text: 'LeetCode',
-                        fontSize: 14,
-                        fill: '#10b981',
-                        opacity: 0.8
+                        x: 72, y: 40,
+                        text: 'LeetCode Skills',
+                        fontSize: 18,
+                        fill: COLORS.text.secondary,
+                        z: 4
                     }
                 }
             ]
         },
 
-        // Step 2: 70% slice appears
+        // Step 2: 70% segment appears
         {
             id: 'step2',
             duration: 1000,
             objects: [
+                { id: 'donut-bg', props: {} },
+                { id: 'arc-30', props: { opacity: 0.6 } },
+                { id: 'label-30-card', props: { opacity: 0.6 } },
+                { id: 'label-30-pct', props: { opacity: 0.6 } },
+                { id: 'label-30-desc', props: { opacity: 0.6 } },
+                // 70% arc (rose)
                 {
-                    id: 'slice-30',
-                    props: { opacity: 1 }
-                },
-                { id: 'label-30', props: { opacity: 1 } },
-                { id: 'label-30-desc', props: { opacity: 1 } },
-                {
-                    id: 'slice-70',
+                    id: 'arc-70',
                     type: 'path',
                     props: {
-                        x: 50, y: 50,
-                        d: createPieSlicePath(0, 0, 15, 18, 270),
-                        fill: '#ef4444',
-                        opacity: 1,
-                        zIndex: 1
+                        x: 40, y: 50,
+                        d: createArcPath(18, 18, 270), // Remaining arc
+                        fill: 'transparent',
+                        stroke: COLORS.accent.rose,
+                        strokeWidth: 8,
+                        z: 2,
+                        shadow: SHADOW_GLOW('rgba(244, 63, 94, 0.5)')
+                    }
+                },
+                // Label card
+                {
+                    id: 'label-70-card',
+                    type: 'rect',
+                    props: {
+                        x: 72, y: 60,
+                        width: 25, height: 14,
+                        fill: COLORS.bg.card,
+                        stroke: COLORS.accent.rose,
+                        strokeWidth: 2,
+                        rx: 8,
+                        z: 3
                     }
                 },
                 {
-                    id: 'label-70',
+                    id: 'label-70-pct',
                     type: 'text',
                     props: {
-                        x: 38, y: 70,
+                        x: 72, y: 57,
                         text: '70%',
-                        fontSize: 32,
+                        fontSize: 42,
                         fontWeight: 'bold',
-                        fill: '#ef4444',
-                        opacity: 1
+                        fill: COLORS.accent.rose,
+                        z: 4
                     }
                 },
                 {
                     id: 'label-70-desc',
                     type: 'text',
                     props: {
-                        x: 38, y: 80,
-                        text: 'Real Skills',
-                        fontSize: 14,
-                        fill: '#ef4444',
-                        opacity: 0.8
+                        x: 72, y: 66,
+                        text: 'System Design',
+                        fontSize: 18,
+                        fill: COLORS.text.secondary,
+                        z: 4
                     }
                 }
-            ]
-        },
-
-        // Step 3: Emphasis
-        {
-            id: 'step3',
-            duration: 600,
-            objects: [
-                { id: 'slice-30', props: { opacity: 0.6 } },
-                { id: 'label-30', props: { opacity: 0.6 } },
-                { id: 'label-30-desc', props: { opacity: 0.5 } },
-                { id: 'slice-70', props: { opacity: 1, z: 10 } },
-                { id: 'label-70', props: { opacity: 1, fontSize: 36 } },
-                { id: 'label-70-desc', props: { opacity: 1 } }
             ]
         }
     ]
 };
 
 // ==========================================================================
-// KILLER #1 - Business Logic
+// KILLER #1 - Race Condition Collision Cards
 // ==========================================================================
 
 export const killer1Scene = {
     id: 'killer1-animation',
     duration: 800,
-    background: '#1a1a2e',
+    background: COLORS.bg.dark,
 
     steps: [
-        // Step 1: Problem card
+        // Step 1: Two transaction cards appear
         {
             id: 'step1',
+            duration: 600,
             objects: [
+                // Title
                 {
-                    id: 'killer-card',
+                    id: 'title',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 15,
+                        text: 'Interview Killer #1',
+                        fontSize: 42,
+                        fontWeight: 'bold',
+                        fill: COLORS.accent.rose,
+                        z: 10
+                    }
+                },
+                {
+                    id: 'subtitle',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 23,
+                        text: 'The Implementation Gap',
+                        fontSize: 28,
+                        fill: COLORS.text.secondary,
+                        z: 10
+                    }
+                },
+                // Transaction Card 1 (left)
+                {
+                    id: 'tx-card-1',
                     type: 'group',
                     props: {
-                        x: 50, y: 20,
-                        shadow: { blur: 20, color: 'rgba(239, 68, 68, 0.3)' }
+                        x: 30, y: 55,
+                        z: 5,
+                        rotation: -5,
+                        shadow: SHADOW
                     },
                     children: [
                         {
+                            id: 'tx-bg-1',
                             type: 'rect',
                             props: {
-                                width: 85, height: 18,
-                                fill: '#334155',
-                                stroke: '#ef4444',
-                                strokeWidth: 3,
-                                rx: 12
+                                width: 25, height: 20,
+                                fill: COLORS.bg.card,
+                                stroke: COLORS.accent.blue,
+                                strokeWidth: 2,
+                                rx: 10
                             }
                         },
                         {
+                            id: 'tx-icon-1',
                             type: 'text',
+                            props: { y: -4, text: '💳', fontSize: 36 }
+                        },
+                        {
+                            id: 'tx-label-1',
+                            type: 'text',
+                            props: { y: 5, text: 'TX-001', fontSize: 20, fill: COLORS.text.primary }
+                        },
+                        {
+                            id: 'tx-amount-1',
+                            type: 'text',
+                            props: { y: 11, text: '$500', fontSize: 24, fontWeight: 'bold', fill: COLORS.accent.blue }
+                        }
+                    ]
+                },
+                // Transaction Card 2 (right)
+                {
+                    id: 'tx-card-2',
+                    type: 'group',
+                    props: {
+                        x: 70, y: 55,
+                        z: 5,
+                        rotation: 5,
+                        shadow: SHADOW
+                    },
+                    children: [
+                        {
+                            id: 'tx-bg-2',
+                            type: 'rect',
                             props: {
-                                x: -38, y: 0,
-                                text: '#1',
-                                fontSize: 36,
-                                fontWeight: 'bold',
-                                fill: '#ef4444'
+                                width: 25, height: 20,
+                                fill: COLORS.bg.card,
+                                stroke: COLORS.accent.violet,
+                                strokeWidth: 2,
+                                rx: 10
                             }
                         },
                         {
+                            id: 'tx-icon-2',
                             type: 'text',
-                            props: {
-                                x: 5, y: -3,
-                                text: 'Business Logic Complexity',
-                                fontSize: 20,
-                                fontWeight: 'bold',
-                                fill: '#f1f5f9'
-                            }
+                            props: { y: -4, text: '💳', fontSize: 36 }
                         },
                         {
+                            id: 'tx-label-2',
                             type: 'text',
-                            props: {
-                                x: 5, y: 5,
-                                text: '"Implement a money transfer system"',
-                                fontSize: 14,
-                                fill: '#cbd5e1'
-                            }
+                            props: { y: 5, text: 'TX-002', fontSize: 20, fill: COLORS.text.primary }
+                        },
+                        {
+                            id: 'tx-amount-2',
+                            type: 'text',
+                            props: { y: 11, text: '$500', fontSize: 24, fontWeight: 'bold', fill: COLORS.accent.violet }
                         }
                     ]
                 }
             ]
         },
 
-        // Step 2: Code block
+        // Step 2: Cards collide (race condition!)
         {
             id: 'step2',
+            duration: 600,
             objects: [
-                { id: 'killer-card', props: { y: 15 } },
+                { id: 'title', props: {} },
+                { id: 'subtitle', props: {} },
+                // Cards move toward center
                 {
-                    id: 'code-block',
-                    type: 'rect',
+                    id: 'tx-card-1',
+                    props: { x: 45, rotation: 0, z: 8 }
+                },
+                {
+                    id: 'tx-card-2',
+                    props: { x: 55, rotation: 0, z: 7 }
+                },
+                // Collision effect
+                {
+                    id: 'collision-glow',
+                    type: 'circle',
                     props: {
-                        x: 50, y: 50,
-                        width: 85, height: 25,
-                        fill: '#0f172a',
-                        rx: 8,
-                        opacity: 1
+                        x: 50, y: 55,
+                        radius: 8,
+                        fill: 'transparent',
+                        stroke: COLORS.accent.rose,
+                        strokeWidth: 3,
+                        z: 15,
+                        shadow: SHADOW_GLOW('rgba(244, 63, 94, 0.6)')
                     }
                 },
                 {
-                    id: 'code-text',
+                    id: 'collision-text',
                     type: 'text',
                     props: {
-                        x: 50, y: 50,
-                        text: '// Missing: Transaction safety, idempotency, race conditions...',
-                        fontSize: 12,
-                        fill: '#94a3b8',
-                        opacity: 1
+                        x: 50, y: 80,
+                        text: '⚡ RACE CONDITION',
+                        fontSize: 32,
+                        fontWeight: 'bold',
+                        fill: COLORS.accent.rose,
+                        z: 15
                     }
                 }
             ]
         },
 
-        // Step 3: Warning
+        // Step 3: Error state
         {
             id: 'step3',
+            duration: 600,
             objects: [
-                { id: 'killer-card', props: { y: 12 } },
-                { id: 'code-block', props: { y: 42 } },
-                { id: 'code-text', props: { y: 42 } },
+                { id: 'title', props: {} },
+                { id: 'subtitle', props: {} },
+                { id: 'tx-card-1', props: { x: 45, opacity: 0.4 } },
+                { id: 'tx-card-2', props: { x: 55, opacity: 0.4 } },
+                { id: 'collision-glow', props: { radius: 15, opacity: 0.3 } },
+                { id: 'collision-text', props: { y: 75 } },
+                // Error card
                 {
-                    id: 'warning-box',
+                    id: 'error-card',
+                    type: 'rect',
+                    props: {
+                        x: 50, y: 55,
+                        width: 40, height: 15,
+                        fill: COLORS.accent.rose,
+                        rx: 10,
+                        z: 20,
+                        shadow: SHADOW
+                    }
+                },
+                {
+                    id: 'error-text',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 55,
+                        text: '❌ Balance: -$500',
+                        fontSize: 28,
+                        fontWeight: 'bold',
+                        fill: COLORS.text.primary,
+                        z: 21
+                    }
+                }
+            ]
+        }
+    ]
+};
+
+// ==========================================================================
+// KILLER #2 - Scaling Problems
+// ==========================================================================
+
+export const killer2Scene = {
+    id: 'killer2-animation',
+    duration: 800,
+    background: COLORS.bg.dark,
+
+    steps: [
+        // Step 1: Single server
+        {
+            id: 'step1',
+            duration: 600,
+            objects: [
+                {
+                    id: 'title',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 15,
+                        text: 'Interview Killer #2',
+                        fontSize: 42,
+                        fontWeight: 'bold',
+                        fill: COLORS.accent.amber,
+                        z: 10
+                    }
+                },
+                {
+                    id: 'subtitle',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 23,
+                        text: 'The Scaling Nightmare',
+                        fontSize: 28,
+                        fill: COLORS.text.secondary,
+                        z: 10
+                    }
+                },
+                // Single server
+                {
+                    id: 'server',
                     type: 'group',
                     props: {
-                        x: 50, y: 78,
-                        shadow: { blur: 15, color: 'rgba(239, 68, 68, 0.4)' }
+                        x: 50, y: 55,
+                        z: 5,
+                        shadow: SHADOW
                     },
                     children: [
                         {
                             type: 'rect',
                             props: {
-                                width: 85, height: 18,
-                                fill: 'rgba(239, 68, 68, 0.1)',
-                                stroke: '#ef4444',
+                                width: 20, height: 25,
+                                fill: COLORS.bg.card,
+                                stroke: COLORS.accent.emerald,
                                 strokeWidth: 2,
                                 rx: 8
                             }
                         },
                         {
                             type: 'text',
-                            props: {
-                                x: 0, y: 0,
-                                text: '80% of candidates fail this',
-                                fontSize: 24,
-                                fontWeight: 'bold',
-                                fill: '#ef4444'
-                            }
+                            props: { y: -6, text: '🖥️', fontSize: 32 }
+                        },
+                        {
+                            type: 'text',
+                            props: { y: 4, text: 'Server', fontSize: 18, fill: COLORS.text.primary }
+                        },
+                        {
+                            type: 'text',
+                            props: { y: 10, text: '100 TPS', fontSize: 16, fill: COLORS.accent.emerald }
                         }
                     ]
                 }
             ]
-        }
-    ]
-};
+        },
 
-// ==========================================================================
-// KILLER #2 - Theory Under Pressure
-// ==========================================================================
-
-export const killer2Scene = {
-    id: 'killer2-animation',
-    duration: 800,
-    background: '#1a1a2e',
-
-    steps: [
-        // Step 1: Main question
+        // Step 2: Traffic spike
         {
-            id: 'step1',
+            id: 'step2',
+            duration: 800,
             objects: [
+                { id: 'title', props: {} },
+                { id: 'subtitle', props: {} },
                 {
-                    id: 'main-question',
+                    id: 'server',
+                    props: { rotation: 5 }
+                },
+                // Traffic arrows
+                {
+                    id: 'traffic-1',
+                    type: 'text',
+                    props: { x: 20, y: 55, text: '→', fontSize: 48, fill: COLORS.accent.rose, z: 3 }
+                },
+                {
+                    id: 'traffic-2',
+                    type: 'text',
+                    props: { x: 25, y: 45, text: '→', fontSize: 48, fill: COLORS.accent.rose, z: 3 }
+                },
+                {
+                    id: 'traffic-3',
+                    type: 'text',
+                    props: { x: 22, y: 65, text: '→', fontSize: 48, fill: COLORS.accent.rose, z: 3 }
+                },
+                {
+                    id: 'spike-label',
                     type: 'text',
                     props: {
-                        x: 50, y: 20,
-                        text: '"Explain how a HashMap works"',
+                        x: 50, y: 80,
+                        text: '📈 10,000 TPS Incoming!',
                         fontSize: 28,
-                        fontWeight: 'bold',
-                        fill: '#f1f5f9',
-                        opacity: 1
+                        fill: COLORS.accent.rose,
+                        z: 10
                     }
                 }
             ]
         },
 
-        // Step 2: Follow-up questions
+        // Step 3: Server crash
         {
-            id: 'step2',
+            id: 'step3',
+            duration: 600,
             objects: [
-                { id: 'main-question', props: { y: 15 } },
+                { id: 'title', props: {} },
+                { id: 'subtitle', props: {} },
                 {
-                    id: 'followup-1',
+                    id: 'server',
+                    props: { rotation: 15, opacity: 0.5 }
+                },
+                { id: 'traffic-1', props: { x: 35 } },
+                { id: 'traffic-2', props: { x: 38 } },
+                { id: 'traffic-3', props: { x: 36 } },
+                { id: 'spike-label', props: { opacity: 0.5 } },
+                {
+                    id: 'crash',
                     type: 'text',
                     props: {
-                        x: 25, y: 40,
-                        text: '↳ "What happens with the load factor?"',
-                        fontSize: 16,
-                        fill: '#cbd5e1',
-                        opacity: 1
+                        x: 50, y: 55,
+                        text: '💥',
+                        fontSize: 72,
+                        z: 20
                     }
                 },
                 {
-                    id: 'followup-2',
+                    id: 'crash-label',
                     type: 'text',
                     props: {
-                        x: 25, y: 52,
-                        text: '↳ "Why is resize O(n) amortized?"',
-                        fontSize: 16,
-                        fill: '#cbd5e1',
-                        opacity: 1
-                    }
-                },
-                {
-                    id: 'followup-3',
-                    type: 'text',
-                    props: {
-                        x: 25, y: 64,
-                        text: '↳ "How does Java 8 handle collisions?"',
-                        fontSize: 16,
-                        fill: '#cbd5e1',
-                        opacity: 1
-                    }
-                },
-                {
-                    id: 'gap-message',
-                    type: 'text',
-                    props: {
-                        x: 50, y: 85,
-                        text: 'The gap: KNOWING vs ARTICULATING under pressure',
-                        fontSize: 16,
-                        fill: '#f97316',
-                        opacity: 1
+                        x: 50, y: 75,
+                        text: 'SERVER CRASHED',
+                        fontSize: 36,
+                        fontWeight: 'bold',
+                        fill: COLORS.accent.rose,
+                        z: 20
                     }
                 }
             ]
@@ -469,77 +804,149 @@ export const killer2Scene = {
 };
 
 // ==========================================================================
-// KILLER #3 - System Design
+// KILLER #3 - Edge Cases
 // ==========================================================================
 
 export const killer3Scene = {
     id: 'killer3-animation',
     duration: 800,
-    background: '#1a1a2e',
+    background: COLORS.bg.dark,
 
     steps: [
-        // Step 1: System boxes
+        // Step 1: Clean code
         {
             id: 'step1',
+            duration: 600,
             objects: [
                 {
-                    id: 'box-lb',
-                    type: 'group',
-                    props: { x: 25, y: 40 },
-                    children: [
-                        { type: 'rect', props: { width: 15, height: 12, fill: '#3b82f6', rx: 8 } },
-                        { type: 'text', props: { y: 0, text: 'Load\nBalancer', fontSize: 12, fill: '#fff' } }
-                    ]
+                    id: 'title',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 15,
+                        text: 'Interview Killer #3',
+                        fontSize: 42,
+                        fontWeight: 'bold',
+                        fill: COLORS.accent.violet,
+                        z: 10
+                    }
                 },
                 {
-                    id: 'box-api',
-                    type: 'group',
-                    props: { x: 50, y: 40 },
-                    children: [
-                        { type: 'rect', props: { width: 15, height: 12, fill: '#10b981', rx: 8 } },
-                        { type: 'text', props: { y: 0, text: 'API\nServer', fontSize: 12, fill: '#fff' } }
-                    ]
+                    id: 'subtitle',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 23,
+                        text: 'The Edge Case Trap',
+                        fontSize: 28,
+                        fill: COLORS.text.secondary,
+                        z: 10
+                    }
+                },
+                // Code block
+                {
+                    id: 'code-card',
+                    type: 'rect',
+                    props: {
+                        x: 50, y: 55,
+                        width: 50, height: 30,
+                        fill: COLORS.bg.card,
+                        stroke: COLORS.accent.emerald,
+                        strokeWidth: 2,
+                        rx: 10,
+                        z: 5,
+                        shadow: SHADOW
+                    }
                 },
                 {
-                    id: 'box-db',
-                    type: 'group',
-                    props: { x: 75, y: 40 },
-                    children: [
-                        { type: 'rect', props: { width: 15, height: 12, fill: '#f97316', rx: 8 } },
-                        { type: 'text', props: { y: 0, text: 'Database', fontSize: 12, fill: '#fff' } }
-                    ]
+                    id: 'code-check',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 50,
+                        text: '✓ Solution Works',
+                        fontSize: 32,
+                        fill: COLORS.accent.emerald,
+                        z: 6
+                    }
+                },
+                {
+                    id: 'code-status',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 60,
+                        text: 'All tests passing',
+                        fontSize: 22,
+                        fill: COLORS.text.secondary,
+                        z: 6
+                    }
                 }
             ]
         },
 
-        // Step 2: Deep dive message
+        // Step 2: Edge case appears
         {
             id: 'step2',
+            duration: 600,
             objects: [
-                { id: 'box-lb', props: { opacity: 0.7 } },
-                { id: 'box-api', props: { opacity: 0.7 } },
-                { id: 'box-db', props: { opacity: 0.7 } },
+                { id: 'title', props: {} },
+                { id: 'subtitle', props: {} },
                 {
-                    id: 'deep-dive',
-                    type: 'text',
-                    props: {
-                        x: 50, y: 70,
-                        text: 'Drawing boxes is easy...',
-                        fontSize: 20,
-                        fill: '#64748b',
-                        opacity: 1
-                    }
+                    id: 'code-card',
+                    props: { stroke: COLORS.accent.amber }
                 },
                 {
-                    id: 'defend-message',
+                    id: 'code-check',
+                    props: { text: '⚠️ Wait...', fill: COLORS.accent.amber }
+                },
+                {
+                    id: 'code-status',
+                    props: { text: 'Interviewer asks:', fill: COLORS.text.muted }
+                },
+                {
+                    id: 'edge-case',
                     type: 'text',
                     props: {
-                        x: 50, y: 82,
-                        text: 'DEFENDING your choices is what matters',
-                        fontSize: 18,
+                        x: 50, y: 78,
+                        text: '"What if the array is empty?"',
+                        fontSize: 28,
+                        fill: COLORS.accent.rose,
+                        z: 10
+                    }
+                }
+            ]
+        },
+
+        // Step 3: Crash
+        {
+            id: 'step3',
+            duration: 600,
+            objects: [
+                { id: 'title', props: {} },
+                { id: 'subtitle', props: {} },
+                {
+                    id: 'code-card',
+                    props: { stroke: COLORS.accent.rose }
+                },
+                {
+                    id: 'code-check',
+                    props: { text: '❌ FAILED', fill: COLORS.accent.rose }
+                },
+                {
+                    id: 'code-status',
+                    props: { text: 'NullPointerException', fill: COLORS.accent.rose, fontFamily: 'monospace' }
+                },
+                {
+                    id: 'edge-case',
+                    props: { opacity: 0.5 }
+                },
+                {
+                    id: 'rejection',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 85,
+                        text: '💔 REJECTED',
+                        fontSize: 36,
                         fontWeight: 'bold',
-                        fill: '#2563eb',
-                        opacity: 1
+                        fill: COLORS.accent.rose,
+                        z: 20
                     }
                 }
             ]
@@ -548,89 +955,292 @@ export const killer3Scene = {
 };
 
 // ==========================================================================
-// SPIDER FRAMEWORK
+// SPIDER FRAMEWORK - 3D Cards Flying Forward
 // ==========================================================================
-
-const spiderItems = [
-    { letter: 'S', word: 'Scope', desc: 'Clarify requirements before coding', color: '#ef4444' },
-    { letter: 'P', word: 'Plan', desc: 'Structure your solution verbally first', color: '#f97316' },
-    { letter: 'I', word: 'Implement', desc: 'Write production-quality code', color: '#eab308' },
-    { letter: 'D', word: 'Debug', desc: 'Trace through edge cases', color: '#22c55e' },
-    { letter: 'E', word: 'Evaluate', desc: 'Discuss trade-offs honestly', color: '#3b82f6' },
-    { letter: 'R', word: 'Refine', desc: 'Optimize with interviewer feedback', color: '#8b5cf6' }
-];
 
 export const spiderFrameworkScene = {
     id: 'spider-framework',
-    duration: 600,
-    background: '#1a1a2e',
+    duration: 800,
+    background: COLORS.bg.dark,
 
     steps: [
         // Step 1: Title
         {
             id: 'step1',
+            duration: 600,
             objects: [
                 {
-                    id: 'title',
+                    id: 'main-title',
                     type: 'text',
                     props: {
-                        x: 50, y: 8,
+                        x: 50, y: 20,
                         text: 'The SPIDER Framework',
-                        fontSize: 36,
+                        fontSize: 52,
                         fontWeight: 'bold',
-                        fill: '#f1f5f9',
-                        opacity: 1
+                        fill: COLORS.accent.cyan,
+                        z: 10,
+                        shadow: SHADOW_GLOW('rgba(34, 211, 238, 0.4)')
+                    }
+                },
+                {
+                    id: 'main-subtitle',
+                    type: 'text',
+                    props: {
+                        x: 50, y: 28,
+                        text: 'Your System Design Secret Weapon',
+                        fontSize: 28,
+                        fill: COLORS.text.secondary,
+                        z: 10
                     }
                 }
             ]
         },
-        // Steps 2-7: Each SPIDER letter
-        ...spiderItems.map((item, i) => ({
-            id: `step${i + 2}`,
+
+        // Step 2-7: Cards fly in
+        {
+            id: 'step2',
             duration: 500,
             objects: [
-                { id: 'title', props: { opacity: 1 } },
-                ...spiderItems.slice(0, i + 1).map((it, j) => ({
-                    id: `spider-${it.letter}`,
+                { id: 'main-title', props: { y: 10, fontSize: 36 } },
+                { id: 'main-subtitle', props: { opacity: 0 } },
+                // S - Scope
+                {
+                    id: 'card-s',
                     type: 'group',
                     props: {
-                        x: 15, y: 18 + j * 12,
-                        opacity: 1
+                        x: 50, y: 35,
+                        z: 10,
+                        shadow: SHADOW
                     },
                     children: [
                         {
-                            type: 'text',
+                            type: 'rect',
                             props: {
-                                x: 0, y: 0,
-                                text: it.letter,
-                                fontSize: 36,
-                                fontWeight: 'bold',
-                                fill: it.color
+                                width: 70, height: 10,
+                                fill: COLORS.bg.card,
+                                stroke: COLORS.accent.emerald,
+                                strokeWidth: 2,
+                                rx: 8
                             }
                         },
                         {
                             type: 'text',
-                            props: {
-                                x: 8, y: -2,
-                                text: it.word,
-                                fontSize: 20,
-                                fontWeight: 'bold',
-                                fill: '#f1f5f9'
-                            }
+                            props: { x: -28, text: 'S', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.emerald }
                         },
                         {
                             type: 'text',
-                            props: {
-                                x: 8, y: 4,
-                                text: it.desc,
-                                fontSize: 12,
-                                fill: '#94a3b8'
-                            }
+                            props: { x: 5, text: 'Scope: Clarify requirements', fontSize: 24, fill: COLORS.text.primary }
                         }
                     ]
-                }))
+                }
             ]
-        }))
+        },
+
+        {
+            id: 'step3',
+            duration: 500,
+            objects: [
+                { id: 'main-title', props: { y: 10, fontSize: 36 } },
+                { id: 'main-subtitle', props: { opacity: 0 } },
+                { id: 'card-s', props: { y: 30, z: 5, opacity: 0.8 } },
+                // P - Plan
+                {
+                    id: 'card-p',
+                    type: 'group',
+                    props: {
+                        x: 50, y: 42,
+                        z: 10,
+                        shadow: SHADOW
+                    },
+                    children: [
+                        {
+                            type: 'rect',
+                            props: {
+                                width: 70, height: 10,
+                                fill: COLORS.bg.card,
+                                stroke: COLORS.accent.blue,
+                                strokeWidth: 2,
+                                rx: 8
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: { x: -28, text: 'P', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.blue }
+                        },
+                        {
+                            type: 'text',
+                            props: { x: 5, text: 'Plan: Structure verbally', fontSize: 24, fill: COLORS.text.primary }
+                        }
+                    ]
+                }
+            ]
+        },
+
+        {
+            id: 'step4',
+            duration: 500,
+            objects: [
+                { id: 'main-title', props: { y: 10, fontSize: 36 } },
+                { id: 'card-s', props: { y: 28, z: 2, opacity: 0.6 } },
+                { id: 'card-p', props: { y: 38, z: 5, opacity: 0.8 } },
+                // I - Implement
+                {
+                    id: 'card-i',
+                    type: 'group',
+                    props: {
+                        x: 50, y: 50,
+                        z: 10,
+                        shadow: SHADOW
+                    },
+                    children: [
+                        {
+                            type: 'rect',
+                            props: {
+                                width: 70, height: 10,
+                                fill: COLORS.bg.card,
+                                stroke: COLORS.accent.violet,
+                                strokeWidth: 2,
+                                rx: 8
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: { x: -28, text: 'I', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.violet }
+                        },
+                        {
+                            type: 'text',
+                            props: { x: 5, text: 'Implement: Production code', fontSize: 24, fill: COLORS.text.primary }
+                        }
+                    ]
+                }
+            ]
+        },
+
+        {
+            id: 'step5',
+            duration: 500,
+            objects: [
+                { id: 'main-title', props: { y: 10, fontSize: 36 } },
+                { id: 'card-s', props: { y: 26, z: 0, opacity: 0.5 } },
+                { id: 'card-p', props: { y: 35, z: 2, opacity: 0.6 } },
+                { id: 'card-i', props: { y: 46, z: 5, opacity: 0.8 } },
+                // D - Debug
+                {
+                    id: 'card-d',
+                    type: 'group',
+                    props: {
+                        x: 50, y: 58,
+                        z: 10,
+                        shadow: SHADOW
+                    },
+                    children: [
+                        {
+                            type: 'rect',
+                            props: {
+                                width: 70, height: 10,
+                                fill: COLORS.bg.card,
+                                stroke: COLORS.accent.amber,
+                                strokeWidth: 2,
+                                rx: 8
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: { x: -28, text: 'D', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.amber }
+                        },
+                        {
+                            type: 'text',
+                            props: { x: 5, text: 'Debug: Trace edge cases', fontSize: 24, fill: COLORS.text.primary }
+                        }
+                    ]
+                }
+            ]
+        },
+
+        {
+            id: 'step6',
+            duration: 500,
+            objects: [
+                { id: 'main-title', props: { y: 10, fontSize: 36 } },
+                { id: 'card-s', props: { y: 24, z: -2, opacity: 0.4 } },
+                { id: 'card-p', props: { y: 32, z: 0, opacity: 0.5 } },
+                { id: 'card-i', props: { y: 42, z: 2, opacity: 0.6 } },
+                { id: 'card-d', props: { y: 54, z: 5, opacity: 0.8 } },
+                // E - Evaluate
+                {
+                    id: 'card-e',
+                    type: 'group',
+                    props: {
+                        x: 50, y: 66,
+                        z: 10,
+                        shadow: SHADOW
+                    },
+                    children: [
+                        {
+                            type: 'rect',
+                            props: {
+                                width: 70, height: 10,
+                                fill: COLORS.bg.card,
+                                stroke: COLORS.accent.rose,
+                                strokeWidth: 2,
+                                rx: 8
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: { x: -28, text: 'E', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.rose }
+                        },
+                        {
+                            type: 'text',
+                            props: { x: 5, text: 'Evaluate: Discuss trade-offs', fontSize: 24, fill: COLORS.text.primary }
+                        }
+                    ]
+                }
+            ]
+        },
+
+        {
+            id: 'step7',
+            duration: 500,
+            objects: [
+                { id: 'main-title', props: { y: 10, fontSize: 36 } },
+                { id: 'card-s', props: { y: 22, z: -4, opacity: 0.3 } },
+                { id: 'card-p', props: { y: 30, z: -2, opacity: 0.4 } },
+                { id: 'card-i', props: { y: 40, z: 0, opacity: 0.5 } },
+                { id: 'card-d', props: { y: 52, z: 2, opacity: 0.6 } },
+                { id: 'card-e', props: { y: 64, z: 5, opacity: 0.8 } },
+                // R - Refine
+                {
+                    id: 'card-r',
+                    type: 'group',
+                    props: {
+                        x: 50, y: 76,
+                        z: 10,
+                        shadow: SHADOW
+                    },
+                    children: [
+                        {
+                            type: 'rect',
+                            props: {
+                                width: 70, height: 10,
+                                fill: COLORS.bg.card,
+                                stroke: COLORS.accent.cyan,
+                                strokeWidth: 2,
+                                rx: 8
+                            }
+                        },
+                        {
+                            type: 'text',
+                            props: { x: -28, text: 'R', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.cyan }
+                        },
+                        {
+                            type: 'text',
+                            props: { x: 5, text: 'Refine: Optimize with feedback', fontSize: 24, fill: COLORS.text.primary }
+                        }
+                    ]
+                }
+            ]
+        }
     ]
 };
 
@@ -639,20 +1249,23 @@ export const spiderFrameworkScene = {
 // ==========================================================================
 
 /**
- * Create SVG path for a pie slice (using percentage coordinates)
+ * Create an arc path for donut chart
  */
-function createPieSlicePath(cx, cy, r, startAngle, endAngle) {
-    if (r === 0) return `M ${cx} ${cy}`;
+function createArcPath(radius, startAngle, endAngle) {
+    const start = polarToCartesian(0, 0, radius, endAngle);
+    const end = polarToCartesian(0, 0, radius, startAngle);
+    const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
 
-    const startRad = (startAngle * Math.PI) / 180;
-    const endRad = (endAngle * Math.PI) / 180;
+    return [
+        'M', start.x, start.y,
+        'A', radius, radius, 0, largeArcFlag, 0, end.x, end.y
+    ].join(' ');
+}
 
-    const x1 = cx + r * Math.cos(startRad);
-    const y1 = cy + r * Math.sin(startRad);
-    const x2 = cx + r * Math.cos(endRad);
-    const y2 = cy + r * Math.sin(endRad);
-
-    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-
-    return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+function polarToCartesian(cx, cy, radius, angleDeg) {
+    const angleRad = (angleDeg - 90) * Math.PI / 180;
+    return {
+        x: cx + radius * Math.cos(angleRad),
+        y: cy + radius * Math.sin(angleRad)
+    };
 }
