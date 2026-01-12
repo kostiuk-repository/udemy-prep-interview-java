@@ -40,7 +40,8 @@ export const VisualBlock = {
      * @returns {Object} VisualBlock instance
      */
     init(config) {
-        const scene = config.scene;
+        // Support both 'scene' and 'composition' for backward compatibility
+        const scene = config.scene || config.composition;
         const totalSteps = config.totalSteps || scene?.steps?.length || 1;
 
         const instance = {
@@ -149,9 +150,22 @@ export const VisualBlock = {
         // Link engine to renderer
         instance.renderer.setEngine(instance.engine);
 
-        // Load scene
-        if (instance.scene) {
-            instance.engine.loadScene(instance.scene);
+        // Load scene - support both state-based scenes and compositions
+        const scene = instance.scene;
+        if (scene) {
+            // Check if this is a state-based scene (has steps) or needs conversion
+            if (scene.steps) {
+                // State-based scene - load directly
+                instance.engine.loadScene(scene);
+                console.log(`VisualBlock: Loaded state-based scene "${instance.visualId}" with ${scene.steps.length} steps`);
+            } else if (scene.layers) {
+                // Legacy composition - convert to state-based format
+                console.warn(`VisualBlock: Legacy composition detected for "${instance.visualId}", conversion not yet implemented`);
+            } else {
+                console.warn(`VisualBlock: Unknown scene format for "${instance.visualId}"`, scene);
+            }
+        } else {
+            console.warn(`VisualBlock: No scene provided for "${instance.visualId}"`);
         }
 
         // Set up callbacks
@@ -281,8 +295,6 @@ export const VisualBlock = {
 
     /**
      * Go to previous step
-     * @param {string} visualId
-     */
     prevStep(visualId) {
         const instance = visualBlocks.get(visualId);
         if (!instance?.engine) return;
@@ -290,6 +302,15 @@ export const VisualBlock = {
         if (instance.state.currentStep > 1) {
             this.gotoStep(visualId, instance.state.currentStep - 1);
         }
+    },
+
+    /**
+     * Render a specific step (alias for gotoStep, for LessonCore compatibility)
+     * @param {string} visualId
+     * @param {number} stepNumber - 1-indexed step number
+     */
+    renderStep(visualId, stepNumber) {
+        this.gotoStep(visualId, stepNumber);
     },
 
     /**
@@ -399,7 +420,7 @@ export const VisualBlock = {
         const activeHighlight = scriptText.querySelector(`[data-sync-step="${stepNumber}"]`);
         if (activeHighlight) {
             activeHighlight.classList.add('active');
-            activeHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Note: Removed scrollIntoView to keep animation visible
         }
     },
 

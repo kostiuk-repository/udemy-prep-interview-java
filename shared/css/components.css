@@ -469,10 +469,12 @@ body {
 .animation-container {
     background: white;
     border-radius: var(--radius-lg);
-    padding: var(--spacing-xl);
-    min-height: 300px;
+    padding: var(--spacing-md);
+    min-height: 200px;
+    max-height: 400px;
     position: relative;
     color: var(--text-inverse);
+    overflow: hidden;
 }
 
 /* ==========================================================================
@@ -572,13 +574,14 @@ body {
 }
 
 .script-content {
-    max-height: 600px;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
     transition: max-height var(--transition-slow) ease;
 }
 
 .script-content.collapsed {
     max-height: 0;
+    overflow: hidden;
 }
 
 .script-text {
