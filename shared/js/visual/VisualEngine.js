@@ -217,7 +217,10 @@ export class StateBasedEngine {
      */
     seekToFrame(frame) {
         const totalFrames = this.getTotalFrames();
-        if (frame < 0 || frame >= totalFrames) return;
+        if (frame < 0 || frame >= totalFrames) {
+            console.warn(`seekToFrame: Frame ${frame} out of range (0-${totalFrames})`);
+            return;
+        }
 
         // Calculate which step and progress within step
         let frameCount = 0;
@@ -230,9 +233,19 @@ export class StateBasedEngine {
                 // Frame is within this step's transition
                 const progress = (frame - frameCount) / stepFrames;
 
-                if (this.currentStepIndex !== i) {
+                // Debug logging (every 20 frames)
+                if (frame % 20 === 0) {
+                    console.log(`seekToFrame(${frame}): step=${i}, progress=${progress.toFixed(2)}, stepFrames=${stepFrames}`);
+                }
+
+                if (this.currentStepIndex !== i || !this._targetState) {
                     // Need to set up transition to this step
                     const prevIndex = Math.max(0, i - 1);
+
+                    if (frame % 20 === 0) {
+                        console.log(`  -> Setting up transition: prevStep=${prevIndex}, targetStep=${i}`);
+                    }
+
                     this.previousState = this._buildStateFromStep(this.scene.steps[prevIndex]);
                     this._targetState = this._buildStateFromStep(step);
                     this._detectObjectChanges(this._targetState);
@@ -247,6 +260,8 @@ export class StateBasedEngine {
 
             frameCount += stepFrames;
         }
+
+        console.warn(`seekToFrame: Could not find step for frame ${frame}`);
     }
 
     /**

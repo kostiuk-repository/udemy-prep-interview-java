@@ -49,13 +49,23 @@ export class VideoExporter {
     async renderVideo(scene, options = {}) {
         const { onProgress, holdFrames = 30 } = options;
 
+        console.log('=== VIDEO EXPORT START ===');
+        console.log('Scene:', scene?.id || 'unknown');
+        console.log('Steps count:', scene?.steps?.length || 0);
+        console.log('Options:', { holdFrames, fps: this.fps, width: this.width, height: this.height });
+
+        if (!scene || !scene.steps || scene.steps.length === 0) {
+            console.error('VideoExporter: No scene or steps provided!');
+            throw new Error('Invalid scene: no steps defined');
+        }
+
         // Create canvas and renderer
         const canvas = document.createElement('canvas');
         canvas.width = this.width;
         canvas.height = this.height;
+        console.log('Canvas created:', canvas.width, 'x', canvas.height);
 
         // Attach canvas to DOM (hidden) to ensure captureStream works reliably
-        // Some browsers pause processing on detached canvases
         canvas.style.cssText = `
             position: fixed;
             top: 0;
@@ -65,9 +75,14 @@ export class VideoExporter {
             z-index: -1000;
         `;
         document.body.appendChild(canvas);
+        console.log('Canvas attached to DOM');
 
         // Context for rendering
         const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error('VideoExporter: Failed to get 2D context!');
+            throw new Error('Failed to get canvas 2D context');
+        }
 
         // StateBasedEngine initialization
         const renderer = new CanvasRenderer(canvas, { scale: 1.0 });
@@ -76,8 +91,11 @@ export class VideoExporter {
             height: this.height,
             fps: this.fps
         });
+
+        console.log('Loading scene into engine...');
         engine.loadScene(scene);
         renderer.setEngine(engine);
+        console.log('Engine loaded. Step count:', engine.getStepCount());
 
         // Determine supported mime type
         let mimeType = 'video/webm; codecs=vp9';
@@ -86,25 +104,33 @@ export class VideoExporter {
         } else if (MediaRecorder.isTypeSupported('video/mp4')) {
             mimeType = 'video/mp4';
         }
-
-        console.log(`VideoExporter: Using MIME type ${mimeType}`);
+        console.log('Using MIME type:', mimeType);
 
         // Create stream and recorder
         const stream = canvas.captureStream(this.fps);
+        console.log('Stream created. Tracks:', stream.getTracks().length);
+
         const recorder = new MediaRecorder(stream, {
             mimeType: mimeType,
             videoBitsPerSecond: this.bitrate
         });
+        console.log('MediaRecorder state:', recorder.state);
 
         const chunks = [];
         recorder.ondataavailable = (e) => {
+            console.log('Data available:', e.data.size, 'bytes');
             if (e.data.size > 0) chunks.push(e.data);
+        };
+
+        recorder.onerror = (e) => {
+            console.error('MediaRecorder error:', e);
         };
 
         const recordingPromise = new Promise(resolve => {
             recorder.onstop = () => {
+                console.log('Recorder stopped. Total chunks:', chunks.length);
                 const blob = new Blob(chunks, { type: mimeType });
-                // Cleanup canvas from DOM
+                console.log('Blob created:', blob.size, 'bytes');
                 if (canvas.parentNode) {
                     canvas.parentNode.removeChild(canvas);
                 }
@@ -113,22 +139,33 @@ export class VideoExporter {
         });
 
         // Start recording
-        recorder.start();
+        recorder.start(100); // Request data every 100ms
         this.isRecording = true;
+        console.log('Recording started. State:', recorder.state);
 
         // Give MediaRecorder time to initialize
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 200));
 
         try {
             const totalFrames = engine.getTotalFrames();
             const frameInterval = 1000 / this.fps;
+            console.log('Total frames to render:', totalFrames);
+            console.log('Frame interval:', frameInterval, 'ms');
 
-            // Ensure easing function is set (required by _updateInterpolatedState)
-            engine.easingFn = (t) => t; // Linear for export - smooth transitions
+            if (totalFrames === 0) {
+                console.error('VideoExporter: getTotalFrames() returned 0!');
+                throw new Error('No frames to render');
+            }
 
-            // Render each frame deterministically
+            // Ensure easing function is set
+            engine.easingFn = (t) => t;
+
+            // Render each frame
             for (let frame = 0; frame < totalFrames; frame++) {
-                if (!this.isRecording) break;
+                if (!this.isRecording) {
+                    console.warn('Recording cancelled at frame', frame);
+                    break;
+                }
 
                 // Seek to specific frame position
                 engine.seekToFrame(frame);
@@ -136,17 +173,24 @@ export class VideoExporter {
                 // Get the computed state for this frame
                 const state = engine.getCurrentState();
 
+                // Log every 10th frame for debugging
+                if (frame % 10 === 0) {
+                    console.log(`Frame ${frame}/${totalFrames}: objects=${state.length}, step=${engine.currentStepIndex}`);
+                }
+
                 // Render to canvas
                 renderer.render(state, { background: scene.background });
 
-                // Wait for frame interval (required for captureStream to capture)
+                // Wait for frame interval
                 await new Promise(r => setTimeout(r, frameInterval));
 
                 // Report progress
                 if (onProgress) onProgress(frame + 1, totalFrames);
             }
 
-            // Hold on final frame for a moment
+            console.log('Main render loop complete. Adding hold frames...');
+
+            // Hold on final frame
             for (let h = 0; h < holdFrames; h++) {
                 if (!this.isRecording) break;
                 const state = engine.getCurrentState();
@@ -154,11 +198,17 @@ export class VideoExporter {
                 await new Promise(r => setTimeout(r, frameInterval));
             }
 
+            console.log('Stopping recorder...');
             recorder.stop();
-            return await recordingPromise;
+
+            const blob = await recordingPromise;
+            console.log('=== VIDEO EXPORT COMPLETE ===');
+            console.log('Final blob size:', blob.size, 'bytes');
+
+            return blob;
 
         } catch (err) {
-            console.error('Export failed', err);
+            console.error('Export failed:', err);
             recorder.stop();
             throw err;
         } finally {
