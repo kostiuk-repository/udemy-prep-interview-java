@@ -4,34 +4,29 @@
  * 
  * Declarative state-based animation engine for 4K video generation.
  * Scene → Step → Objects model with automatic property interpolation.
+ * 
+ * ARCHITECTURE NOTE: This file now uses modular components from ./modules/
+ * - StateInterpolator: Pure interpolation functions
+ * - SceneManager: State persistence with deep merge
+ * - TransformUtils: World coordinate calculations
+ * - Telemetry: Structured logging
  */
 
 import { lerp, getEasing, easeInOutCubic } from '../utils/animation.js';
+import {
+    DEFAULTS,
+    interpolateProps,
+    isColor,
+    interpolateColor,
+    parseColor,
+    deepMerge
+} from './modules/StateInterpolator.js';
+import { SceneManager } from './modules/SceneManager.js';
+import { getWorldTransform, getAnchorPosition, Position } from './modules/TransformUtils.js';
+import { Logger } from './modules/Telemetry.js';
 
-// ==========================================================================
-// DEFAULT PROPERTY VALUES
-// ==========================================================================
-
-/**
- * Default values for object properties.
- * Used when a property is missing in one step but present in another.
- */
-export const DEFAULTS = {
-    x: 0,
-    y: 0,
-    z: 0,
-    width: 100,
-    height: 100,
-    opacity: 1,
-    scale: 1,
-    rotation: 0,
-    fill: '#000000',
-    stroke: 'transparent',
-    strokeWidth: 1,
-    fontSize: 16,
-    rx: 0,
-    ry: 0
-};
+// Re-export DEFAULTS for backward compatibility
+export { DEFAULTS };
 
 // ==========================================================================
 // STATE-BASED ENGINE
@@ -415,28 +410,36 @@ export class StateBasedEngine {
 
     /**
      * Build accumulated state up to stepIndex
-     * Merges all objects from step 0 through stepIndex, with later steps overriding properties.
-     * This is CRITICAL: objects not redefined in later steps retain their properties.
+     * Uses DEEP MERGE for nested properties (e.g., style: { color: 'red' } + style: { fontSize: 24 })
+     * Supports explicit deletion via _delete: true in props.
      * @private
      */
     _buildAccumulatedState(stepIndex) {
         const state = new Map();
-        const objectDefinitions = new Map(); // Stores full object definitions with type
+        const objectDefinitions = new Map();
 
         for (let i = 0; i <= stepIndex; i++) {
             const step = this.scene.steps[i];
             if (!step?.objects) continue;
 
             for (const obj of step.objects) {
+                // Check for explicit deletion
+                if (obj.props?._delete === true) {
+                    objectDefinitions.delete(obj.id);
+                    Logger.debug('VisualEngine', 'Object deleted', { objectId: obj.id, stepIndex: i });
+                    continue;
+                }
+
                 const existingDef = objectDefinitions.get(obj.id);
 
                 if (existingDef) {
-                    // Object already exists - merge props (later step overrides)
-                    const mergedProps = { ...existingDef.props, ...obj.props };
+                    // DEEP MERGE props (nested objects are merged, not replaced)
+                    const mergedProps = deepMerge({ ...existingDef.props }, obj.props || {});
                     objectDefinitions.set(obj.id, {
                         ...existingDef,
                         props: mergedProps,
-                        children: obj.children || existingDef.children
+                        // Children: replace if provided, otherwise keep existing
+                        children: obj.children !== undefined ? obj.children : existingDef.children
                     });
                 } else {
                     // New object definition
@@ -529,52 +532,16 @@ export class StateBasedEngine {
     }
 
     // ==========================================================================
-    // INTERPOLATION
+    // INTERPOLATION (delegates to StateInterpolator module)
     // ==========================================================================
 
     /**
      * Interpolate between two property objects
+     * Delegates to modular interpolateProps function
      * @private
      */
     _interpolateProps(from, to, t) {
-        const result = {};
-        const allKeys = new Set([...Object.keys(from), ...Object.keys(to)]);
-
-        for (const key of allKeys) {
-            // Skip internal properties
-            if (key.startsWith('_')) {
-                result[key] = to[key] ?? from[key];
-                continue;
-            }
-
-            const fromVal = from[key] ?? DEFAULTS[key];
-            const toVal = to[key] ?? DEFAULTS[key];
-
-            if (fromVal === undefined && toVal === undefined) {
-                continue;
-            }
-
-            if (fromVal === undefined) {
-                result[key] = toVal;
-            } else if (toVal === undefined) {
-                result[key] = fromVal;
-            } else if (typeof fromVal === 'number' && typeof toVal === 'number') {
-                result[key] = lerp(fromVal, toVal, t);
-            } else if (typeof fromVal === 'string' && typeof toVal === 'string') {
-                if (this._isColor(fromVal) && this._isColor(toVal)) {
-                    result[key] = this._interpolateColor(fromVal, toVal, t);
-                } else {
-                    result[key] = t > 0.5 ? toVal : fromVal;
-                }
-            } else if (typeof fromVal === 'object' && typeof toVal === 'object') {
-                // Recursively interpolate nested objects (like shadow)
-                result[key] = this._interpolateProps(fromVal, toVal, t);
-            } else {
-                result[key] = t > 0.5 ? toVal : fromVal;
-            }
-        }
-
-        return result;
+        return interpolateProps(from, to, t);
     }
 
     /**
@@ -582,9 +549,7 @@ export class StateBasedEngine {
      * @private
      */
     _isColor(str) {
-        return /^#([0-9A-Fa-f]{3,8})$/.test(str) ||
-            /^rgba?\(/.test(str) ||
-            /^hsla?\(/.test(str);
+        return isColor(str);
     }
 
     /**
@@ -592,18 +557,7 @@ export class StateBasedEngine {
      * @private
      */
     _interpolateColor(from, to, t) {
-        const fromRGB = this._parseColor(from);
-        const toRGB = this._parseColor(to);
-
-        const r = Math.round(lerp(fromRGB.r, toRGB.r, t));
-        const g = Math.round(lerp(fromRGB.g, toRGB.g, t));
-        const b = Math.round(lerp(fromRGB.b, toRGB.b, t));
-        const a = lerp(fromRGB.a, toRGB.a, t);
-
-        if (a < 1) {
-            return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
-        }
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        return interpolateColor(from, to, t);
     }
 
     /**
@@ -611,35 +565,7 @@ export class StateBasedEngine {
      * @private
      */
     _parseColor(color) {
-        // Handle hex
-        if (color.startsWith('#')) {
-            let hex = color.slice(1);
-            if (hex.length === 3) {
-                hex = hex.split('').map(c => c + c).join('');
-            }
-            if (hex.length === 6) {
-                hex += 'ff';
-            }
-            return {
-                r: parseInt(hex.slice(0, 2), 16),
-                g: parseInt(hex.slice(2, 4), 16),
-                b: parseInt(hex.slice(4, 6), 16),
-                a: parseInt(hex.slice(6, 8), 16) / 255
-            };
-        }
-
-        // Handle rgba
-        const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\)/);
-        if (rgbaMatch) {
-            return {
-                r: parseInt(rgbaMatch[1]),
-                g: parseInt(rgbaMatch[2]),
-                b: parseInt(rgbaMatch[3]),
-                a: rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1
-            };
-        }
-
-        return { r: 0, g: 0, b: 0, a: 1 };
+        return parseColor(color);
     }
 
     // ==========================================================================
@@ -797,45 +723,17 @@ export class StateBasedEngine {
 }
 
 // ==========================================================================
-// POSITIONING HELPERS
-// ==========================================================================
-
-export const Position = {
-    Center: () => ({ x: 50, y: 50 }),
-    Top: (offset = 5) => ({ x: 50, y: offset }),
-    Bottom: (offset = 5) => ({ x: 50, y: 100 - offset }),
-    Left: (offset = 5) => ({ x: offset, y: 50 }),
-    Right: (offset = 5) => ({ x: 100 - offset, y: 50 }),
-    TopLeft: (offset = 5) => ({ x: offset, y: offset }),
-    TopRight: (offset = 5) => ({ x: 100 - offset, y: offset }),
-    BottomLeft: (offset = 5) => ({ x: offset, y: 100 - offset }),
-    BottomRight: (offset = 5) => ({ x: 100 - offset, y: 100 - offset }),
-
-    /**
-     * Get position in a grid layout
-     * @param {number} rows - Number of rows
-     * @param {number} cols - Number of columns
-     * @param {number} index - Cell index (0-based)
-     * @param {number} [padding=10] - Padding from edges in %
-     * @returns {Object} { x, y }
-     */
-    Grid: (rows, cols, index, padding = 10) => {
-        const row = Math.floor(index / cols);
-        const col = index % cols;
-
-        const cellWidth = (100 - 2 * padding) / cols;
-        const cellHeight = (100 - 2 * padding) / rows;
-
-        return {
-            x: padding + cellWidth * (col + 0.5),
-            y: padding + cellHeight * (row + 0.5)
-        };
-    }
-};
-
-// ==========================================================================
 // LEGACY EXPORTS (for backwards compatibility)
 // ==========================================================================
 
+// Re-export Position from TransformUtils (no longer duplicated here)
+export { Position };
+
 // Re-export from animation.js for convenience
 export { lerp, getEasing, easeInOutCubic } from '../utils/animation.js';
+
+// Re-export modular utilities for direct import
+export { Logger } from './modules/Telemetry.js';
+export { SceneManager } from './modules/SceneManager.js';
+export { interpolateProps, deepMerge } from './modules/StateInterpolator.js';
+
