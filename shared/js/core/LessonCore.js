@@ -126,21 +126,28 @@ class LessonCoreClass {
     _initSections() {
         this.config.sections.forEach((sectionConfig, index) => {
             const containerId = `section-${sectionConfig.id}`;
-            const container = document.getElementById(containerId);
+            let container = document.getElementById(containerId);
 
             if (!container) {
-                // Create section dynamically
+                // Container doesn't exist - create section and append
                 const mainContainer = document.querySelector('.container');
                 if (mainContainer) {
                     const sectionElement = Section.create(sectionConfig);
                     mainContainer.appendChild(sectionElement);
-                    this._initSectionContents(sectionConfig, sectionElement);
+                    container = sectionElement;
                 }
-            } else {
-                this._initSectionContents(sectionConfig, container);
+            } else if (container.innerHTML.trim() === '' || !container.querySelector('.section-header')) {
+                // Container exists but is empty placeholder - fill it with content
+                const sectionElement = Section.create(sectionConfig);
+                container.replaceWith(sectionElement);
+                container = sectionElement;
             }
 
-            this.components.sections.set(sectionConfig.id, container);
+            // Initialize audio and visual components
+            if (container) {
+                this._initSectionContents(sectionConfig, container);
+                this.components.sections.set(sectionConfig.id, container);
+            }
         });
     }
 
