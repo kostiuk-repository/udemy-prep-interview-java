@@ -239,22 +239,17 @@ export class StateBasedEngine {
                     console.log(`seekToFrame(${frame}): step=${i}, progress=${progress.toFixed(2)}`);
                 }
 
-                // Determine the previous step (for interpolation source)
+                // Build ACCUMULATED states (objects inherit from previous steps)
+                // This is the key fix: objects not redefined in a step retain their previous values
                 const prevStepIndex = i > 0 ? i - 1 : 0;
-                const prevStep = this.scene.steps[prevStepIndex];
+                const fromState = this._buildAccumulatedState(prevStepIndex);
+                const toState = this._buildAccumulatedState(i);
 
-                // Build states for interpolation
-                const fromState = this._buildStateFromStep(prevStep);
-                const toState = this._buildStateFromStep(step);
-
-                // For step 0, we transition from nothing to the first step
-                // For other steps, we interpolate from previous step to current
+                // For step 0, we transition from empty to the first step
+                // For other steps, we interpolate from previous accumulated state to current
                 if (i === 0) {
-                    // First step: just progress into this step
-                    // Objects fade in from 0 opacity
-                    this._computeDirectState(fromState, toState, progress, true);
+                    this._computeDirectState(new Map(), toState, progress, true);
                 } else {
-                    // Transition between steps
                     this._computeDirectState(fromState, toState, progress, false);
                 }
 
@@ -412,6 +407,57 @@ export class StateBasedEngine {
             // Recursively add children for groups
             if (obj.type === 'group' && obj.children) {
                 this._addChildrenToState(state, obj.id, obj.children, fullProps);
+            }
+        }
+
+        return state;
+    }
+
+    /**
+     * Build accumulated state up to stepIndex
+     * Merges all objects from step 0 through stepIndex, with later steps overriding properties.
+     * This is CRITICAL: objects not redefined in later steps retain their properties.
+     * @private
+     */
+    _buildAccumulatedState(stepIndex) {
+        const state = new Map();
+        const objectDefinitions = new Map(); // Stores full object definitions with type
+
+        for (let i = 0; i <= stepIndex; i++) {
+            const step = this.scene.steps[i];
+            if (!step?.objects) continue;
+
+            for (const obj of step.objects) {
+                const existingDef = objectDefinitions.get(obj.id);
+
+                if (existingDef) {
+                    // Object already exists - merge props (later step overrides)
+                    const mergedProps = { ...existingDef.props, ...obj.props };
+                    objectDefinitions.set(obj.id, {
+                        ...existingDef,
+                        props: mergedProps,
+                        children: obj.children || existingDef.children
+                    });
+                } else {
+                    // New object definition
+                    objectDefinitions.set(obj.id, {
+                        id: obj.id,
+                        type: obj.type,
+                        props: { ...obj.props },
+                        children: obj.children
+                    });
+                }
+            }
+        }
+
+        // Convert definitions to state format
+        for (const [id, def] of objectDefinitions) {
+            const fullProps = this._buildObjectProps(def);
+            state.set(id, fullProps);
+
+            // Recursively add children for groups
+            if (def.type === 'group' && def.children) {
+                this._addChildrenToState(state, id, def.children, fullProps);
             }
         }
 

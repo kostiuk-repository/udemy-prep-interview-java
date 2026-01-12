@@ -29,6 +29,10 @@ export class CanvasRenderer {
         this.scale = options.scale ?? 1.0;
         this.depthOfField = options.depthOfField ?? false;
 
+        // Font scaling for 4K resolution (web fonts are too small)
+        // 2.5x scale makes 16px web font appear as 40px on 4K
+        this.fontScale = options.fontScale ?? 2.5;
+
         // Base resolution (4K 16:10)
         this.baseWidth = 3840;
         this.baseHeight = 2400;
@@ -316,8 +320,10 @@ export class CanvasRenderer {
     _renderText(props) {
         const ctx = this.ctx;
 
-        // Scale font size
-        const fontSize = (props.fontSize ?? 16) * this.scale;
+        // Scale font size with both resolution scale and font scale multiplier
+        // fontScale (2.5x) makes web-sized fonts visible on 4K canvas
+        const baseFontSize = props.fontSize ?? 16;
+        const fontSize = baseFontSize * this.scale * this.fontScale;
         const fontFamily = props.fontFamily || 'Inter, sans-serif';
         const fontWeight = props.fontWeight || 'normal';
 

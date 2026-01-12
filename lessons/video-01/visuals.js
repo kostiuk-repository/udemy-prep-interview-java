@@ -35,6 +35,26 @@ const COLORS = {
     }
 };
 
+// ==========================================================================
+// SCALING FOR 4K RESOLUTION
+// ==========================================================================
+
+// Font sizes should be 2.5x larger for 4K (3840x2400) than web (1536x960)
+const FONT_SCALE = 2.5;
+
+// Safe zone: 10% margin on all sides to prevent cutoff
+const SAFE = {
+    left: 10,   // Min X position
+    right: 90,  // Max X position
+    top: 10,    // Min Y position
+    bottom: 90, // Max Y position
+    centerX: 50,
+    centerY: 50
+};
+
+// Stroke widths also need scaling for visibility
+const STROKE_SCALE = 2;
+
 // Standard shadow for depth
 const SHADOW = { blur: 40, color: 'rgba(0, 0, 0, 0.5)', offset: { x: 0, y: 20 } };
 const SHADOW_GLOW = (color) => ({ blur: 60, color: color, offset: { x: 0, y: 0 } });
