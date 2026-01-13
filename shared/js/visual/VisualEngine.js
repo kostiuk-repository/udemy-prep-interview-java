@@ -228,21 +228,15 @@ export class StateBasedEngine {
                 // Found the active step transition
                 const progress = (frame - frameCount) / stepFrames;
 
-                // Debug logging
-                const debugEnabled = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
-                if (frame % 60 === 0 || debugEnabled) {
-                    Logger.debug('VisualEngine', `seekToFrame(${frame})`, { step: i, progress: progress.toFixed(2), progressMs: (frameCount + progress * stepFrames / this.fps * 1000).toFixed(0) });
+                // Debug logging only on step changes (reduced frequency)
+                if (frame % 60 === 0) {
+                    Logger.debug('VisualEngine', `seekToFrame(${frame})`, { step: i, progress: progress.toFixed(2) });
                 }
 
                 // Get states from SceneManager
                 // Note: Step 0 transitions from empty state
                 const fromState = i > 0 ? this.sceneManager.buildAccumulatedState(i - 1) : new Map();
                 const toState = this.sceneManager.buildAccumulatedState(i);
-
-                // Console log step transition details
-                if (i !== this.currentStepIndex && debugEnabled) {
-                    console.log(`[VisualEngine] Step ${i - 1} -> ${i}, frame: ${frame}, fromState: ${fromState.size} objs, toState: ${toState.size} objs`);
-                }
 
                 // Compute interpolated state
                 this._computeStateAtProgress(fromState, toState, progress);

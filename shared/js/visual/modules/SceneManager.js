@@ -162,14 +162,13 @@ export class SceneManager {
             }
         }
 
-        // Debug: log total objects for this accumulated state
-        try {
-            const dbg = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
-            if (dbg) {
-                const ids = Array.from(state.keys());
-                console.log('[Scene Debug] Accumulated state for step', stepIndex, 'objects:', state.size, 'ids:', ids);
-            }
-        } catch {}
+        // Debug: log total objects for this accumulated state (commented out by default)
+        // Uncomment for detailed state inspection
+        // const dbg = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
+        // if (dbg) {
+        //     const ids = Array.from(state.keys());
+        //     console.log('[Scene Debug] Accumulated state for step', stepIndex, 'objects:', state.size, 'ids:', ids);
+        // }
 
         return state;
     }
@@ -192,14 +191,13 @@ export class SceneManager {
             }
         }
 
-        // Debug: log objects for single step state
-        try {
-            const dbg = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
-            if (dbg) {
-                const ids = Array.from(state.keys());
-                console.log('[Scene Debug] Single step state objects:', state.size, 'ids:', ids);
-            }
-        } catch {}
+        // Debug: log objects for single step state (commented out by default)
+        // Uncomment for detailed state inspection
+        // const dbg = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
+        // if (dbg) {
+        //     const ids = Array.from(state.keys());
+        //     console.log('[Scene Debug] Single step state objects:', state.size, 'ids:', ids);
+        // }
 
         return state;
     }

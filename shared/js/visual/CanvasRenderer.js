@@ -86,11 +86,7 @@ export class CanvasRenderer {
         // Clear canvas
         this.clear(options.background);
 
-        // Debug: log canvas boundaries once per render
-        const debugEnabled = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
-        if (debugEnabled) {
-            console.log(`[CANVAS] Screen bounds: width=${this.width}, height=${this.height}, scale=${this.scale}`);
-        }
+        // NO continuous logging - use window.DEBUG_COORDS for on-demand logging
 
         // Build object map for connection arrows
         this.objectMap.clear();
@@ -195,10 +191,10 @@ export class CanvasRenderer {
         if (props.strokeWidth) ctx.lineWidth = props.strokeWidth / totalScale;
 
         // Render based on type
-        // Debug absolute coordinates if enabled
+        // Debug coordinates only on explicit request: window.DEBUG_COORDS = true
         try {
-            const debugEnabled = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
-            if (debugEnabled) {
+            const shouldLog = typeof window !== 'undefined' && window.DEBUG_COORDS === true;
+            if (shouldLog) {
                 let baseW = 0, baseH = 0;
                 switch (obj.type) {
                     case 'rect':
