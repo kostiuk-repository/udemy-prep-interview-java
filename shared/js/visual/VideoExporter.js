@@ -59,6 +59,9 @@ export class VideoExporter {
             throw new Error('Invalid scene: no steps defined');
         }
 
+        // Initialization diagnostics
+        console.log('Init params -> width:', this.width, 'height:', this.height, 'fps:', this.fps, 'bitrate:', this.bitrate);
+
         // Create canvas and renderer
         const canvas = document.createElement('canvas');
         canvas.width = this.width;
@@ -123,7 +126,7 @@ export class VideoExporter {
                 console.log('Recording complete. Chunks:', chunks.length);
 
                 let blob = new Blob(chunks, { type: mimeType });
-                console.log('Raw blob size:', blob.size, 'bytes');
+                console.log('Raw blob size:', blob.size, 'bytes', 'type:', blob.type);
 
                 // Fix WebM duration metadata
                 try {
@@ -245,6 +248,8 @@ async function fixWebMDuration(blob, durationMs) {
     const buffer = await blob.arrayBuffer();
     const data = new Uint8Array(buffer);
 
+    console.log('fixWebMDuration: input buffer size =', data.length, 'bytes');
+
     // Find the Segment Info element and patch duration
     const fixed = patchWebMDuration(data, durationMs);
 
@@ -270,6 +275,7 @@ function patchWebMDuration(data, durationMs) {
 
         // Find Segment element
         let pos = findEBMLElement(data, SEGMENT_ID, 0);
+        console.log('patchWebMDuration: data.length =', data.length, 'segmentPos =', pos);
         if (pos === -1) return data;
 
         // Skip Segment header
@@ -278,12 +284,14 @@ function patchWebMDuration(data, durationMs) {
 
         // Find Info element within Segment
         const infoPos = findEBMLElement(data, SEGMENT_INFO_ID, pos);
+        console.log('patchWebMDuration: infoPos =', infoPos);
         if (infoPos === -1) return data;
 
         // Get Info element size and content position
         const infoHeaderEnd = skipEBMLHeader(data, infoPos);
         const infoSize = readEBMLSize(data, infoPos + SEGMENT_INFO_ID.length);
         const infoEnd = infoHeaderEnd + infoSize.value;
+        console.log('patchWebMDuration: infoHeaderEnd =', infoHeaderEnd, 'infoSize =', infoSize, 'infoEnd =', infoEnd, 'bufferLen =', data.length);
         if (!inBounds(infoHeaderEnd) || !inBounds(infoEnd) || infoEnd > data.length) return data;
 
         // Get TimecodeScale (default 1000000 = 1ms precision)
@@ -304,9 +312,11 @@ function patchWebMDuration(data, durationMs) {
         // Check if Duration already exists
         const existingDuration = findEBMLElement(data, DURATION_ID, infoHeaderEnd, infoEnd);
         if (existingDuration !== -1) {
+            console.log('patchWebMDuration: existing Duration at', existingDuration);
             const durHeaderEnd = existingDuration + DURATION_ID.length;
             const durSize = readEBMLSize(data, durHeaderEnd);
             const durValuePos = durHeaderEnd + durSize.length;
+            console.log('patchWebMDuration: durHeaderEnd =', durHeaderEnd, 'durSize =', durSize, 'durValuePos =', durValuePos);
 
             // Expect 8-byte float; if not, bail out safely
             if (durSize.value !== 8) return data;

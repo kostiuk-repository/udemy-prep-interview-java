@@ -189,6 +189,74 @@ export class CanvasRenderer {
         if (props.strokeWidth) ctx.lineWidth = props.strokeWidth / totalScale;
 
         // Render based on type
+        // Debug absolute coordinates if enabled
+        try {
+            const debugEnabled = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
+            if (debugEnabled) {
+                let baseW = 0, baseH = 0;
+                switch (obj.type) {
+                    case 'rect':
+                    case 'image':
+                        baseW = this._toPixels(props.width ?? 10, 'width');
+                        baseH = this._toPixels(props.height ?? 10, 'height');
+                        break;
+                    case 'circle': {
+                        const r = this._toPixels(props.radius ?? props.r ?? 5, 'width');
+                        baseW = r * 2; baseH = r * 2;
+                        break;
+                    }
+                    case 'ellipse': {
+                        const rx = this._toPixels(props.rx ?? 5, 'width');
+                        const ry = this._toPixels(props.ry ?? 3, 'height');
+                        baseW = rx * 2; baseH = ry * 2;
+                        break;
+                    }
+                    case 'line': {
+                        const x1 = this._toPixels(props.x1 ?? 0, 'width');
+                        const y1 = this._toPixels(props.y1 ?? 0, 'height');
+                        const x2 = this._toPixels(props.x2 ?? 10, 'width');
+                        const y2 = this._toPixels(props.y2 ?? 10, 'height');
+                        baseW = Math.abs(x2 - x1);
+                        baseH = Math.abs(y2 - y1);
+                        break;
+                    }
+                    case 'text': {
+                        const baseFontSize = props.fontSize ?? 16;
+                        const fontSize = baseFontSize * this.scale * this.fontScale;
+                        const fontFamily = props.fontFamily || 'Inter, sans-serif';
+                        const fontWeight = props.fontWeight || 'normal';
+                        const prevFont = ctx.font;
+                        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+                        const text = props.text || '';
+                        baseW = ctx.measureText(text).width;
+                        baseH = fontSize; // approximate line height
+                        ctx.font = prevFont;
+                        break;
+                    }
+                    case 'polygon':
+                    case 'polyline':
+                    default:
+                        baseW = this._toPixels(props.width ?? 0, 'width');
+                        baseH = this._toPixels(props.height ?? 0, 'height');
+                        break;
+                }
+
+                const finalW = baseW * totalScale;
+                const finalH = baseH * totalScale;
+                console.log(
+                    '[Render Debug] ID:', obj.id,
+                    'Type:', obj.type,
+                    'X:', Number(x.toFixed(2)),
+                    'Y:', Number(y.toFixed(2)),
+                    'W:', Number(finalW.toFixed(2)),
+                    'H:', Number(finalH.toFixed(2)),
+                    'Scale:', Number(totalScale.toFixed(3))
+                );
+            }
+        } catch (e) {
+            console.warn('CanvasRenderer debug logging failed:', e);
+        }
+
         switch (obj.type) {
             case 'rect':
                 this._renderRect(props);
