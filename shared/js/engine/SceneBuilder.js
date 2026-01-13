@@ -204,7 +204,7 @@ export class SceneBuilder {
             }
             
             case 'text': {
-                const fontSize = (props.fontSize ?? 16) * 2.5; // Font scale for 4K
+                const fontSize = (props.fontSize ?? 16) * 2.5 * (this.stageManager.scale ?? 1); // Scale down for preview
                 
                 node = new Konva.Text({
                     ...commonProps,
