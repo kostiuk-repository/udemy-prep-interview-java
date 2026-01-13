@@ -159,14 +159,39 @@ export class VideoExporter {
 
         try {
             // Render each frame deterministically
+            const exportStartTime = performance.now();
+            let currentStep = -1;
+            let stepStartTime = exportStartTime;
+            let stepFrameCount = 0;
+            let actualFramesRendered = 0;
+            
+            console.log('=== FRAME GENERATION START ===');
+            
             for (let frame = 0; frame < animationFrames; frame++) {
                 if (!this.isRecording) break;
 
                 // Compute state for this frame
                 engine.seekToFrame(frame);
                 const state = engine.getCurrentState();
-
-                // NO logging during export - prevent console spam
+                
+                // Track step changes
+                if (engine.currentStepIndex !== currentStep) {
+                    // Log previous step metrics
+                    if (currentStep !== -1) {
+                        const stepDuration = performance.now() - stepStartTime;
+                        const avgFrameTime = stepDuration / stepFrameCount;
+                        console.log(`  Step ${currentStep}: ${stepFrameCount} frames in ${stepDuration.toFixed(0)}ms (avg ${avgFrameTime.toFixed(1)}ms/frame)`);
+                    }
+                    
+                    // Start new step
+                    currentStep = engine.currentStepIndex;
+                    stepStartTime = performance.now();
+                    stepFrameCount = 0;
+                    console.log(`Step ${currentStep} start (frame ${frame}/${animationFrames})`);
+                }
+                
+                stepFrameCount++;
+                actualFramesRendered++;
 
                 // Render to canvas
                 renderer.render(state, { background: scene.background });
@@ -183,8 +208,17 @@ export class VideoExporter {
                     if (onProgress) onProgress(frame + 1, totalFrames);
                 }
             }
+            
+            // Log last step
+            if (currentStep !== -1) {
+                const stepDuration = performance.now() - stepStartTime;
+                const avgFrameTime = stepDuration / stepFrameCount;
+                console.log(`  Step ${currentStep}: ${stepFrameCount} frames in ${stepDuration.toFixed(0)}ms (avg ${avgFrameTime.toFixed(1)}ms/frame)`);
+            }
 
             // Hold on final frame
+            console.log('Rendering hold frames...');
+            const holdStartTime = performance.now();
             const finalState = engine.getCurrentState();
             for (let h = 0; h < holdFrames; h++) {
                 if (!this.isRecording) break;
@@ -192,13 +226,24 @@ export class VideoExporter {
                 if (videoTrack.requestFrame) {
                     videoTrack.requestFrame();
                 }
+                actualFramesRendered++;
                 if (h % 10 === 0) {
                     await new Promise(r => setTimeout(r, 0));
                     if (onProgress) onProgress(animationFrames + h + 1, totalFrames);
                 }
             }
+            const holdDuration = performance.now() - holdStartTime;
+            console.log(`  Hold: ${holdFrames} frames in ${holdDuration.toFixed(0)}ms`);
+            
+            const totalExportTime = performance.now() - exportStartTime;
+            const avgFPS = (actualFramesRendered / totalExportTime) * 1000;
+            
+            console.log('=== GENERATION COMPLETE ===');
+            console.log(`Total frames rendered: ${actualFramesRendered}/${totalFrames}`);
+            console.log(`Total time: ${(totalExportTime / 1000).toFixed(2)}s`);
+            console.log(`Average FPS: ${avgFPS.toFixed(1)}`);
 
-            console.log('Render complete, stopping recorder...');
+            console.log('Stopping recorder...');
             recorder.stop();
 
             const blob = await recordingPromise;

@@ -91,14 +91,45 @@ export class CanvasRenderer {
         if (shouldLog) {
             console.log(`[CANVAS] Screen bounds: width=${this.width}, height=${this.height}, scale=${this.scale}`);
             console.log('[CANVAS] Objects to render:', objects.length);
+            console.log('─'.repeat(80));
             
-            // Log summary of all objects
+            // Log detailed bounds for all objects
             objects.forEach(obj => {
                 const props = obj.props || {};
                 const x = (props.x ?? 0) * this.width / 100;
                 const y = (props.y ?? 0) * this.height / 100;
-                console.log(`  - ${obj.id}: type=${obj.type}, x%=${props.x}, y%=${props.y}, px=(${x.toFixed(0)},${y.toFixed(0)})`);
+                
+                // Calculate dimensions
+                let w = this._toPixels(props.width ?? 0, 'width');
+                let h = this._toPixels(props.height ?? 0, 'height');
+                
+                // For group/text without explicit size
+                if (obj.type === 'group' || (obj.type === 'text' && !props.width)) {
+                    w = w || 200; // estimate
+                    h = h || 100; // estimate
+                }
+                
+                const scale = props.scale ?? 1;
+                const finalW = w * scale;
+                const finalH = h * scale;
+                
+                // Calculate bounds (objects are centered)
+                const left = x - finalW / 2;
+                const right = x + finalW / 2;
+                const top = y - finalH / 2;
+                const bottom = y + finalH / 2;
+                
+                const outOfBounds = right < 0 || left > this.width || bottom < 0 || top > this.height;
+                const flag = outOfBounds ? '⚠️ OFF-SCREEN' : '✓';
+                
+                console.log(`${flag} ${obj.id} [${obj.type}]`);
+                console.log(`   Center: (${x.toFixed(0)}, ${y.toFixed(0)}) = ${props.x}%, ${props.y}%`);
+                console.log(`   Size: ${finalW.toFixed(0)}×${finalH.toFixed(0)}px (scale=${scale})`);
+                console.log(`   Bounds: [${left.toFixed(0)}, ${top.toFixed(0)}] to [${right.toFixed(0)}, ${bottom.toFixed(0)}]`);
+                console.log(`   Z-index: ${props.zIndex ?? 0}, Opacity: ${props.opacity ?? 1}`);
             });
+            
+            console.log('─'.repeat(80));
             
             // Auto-disable after one render to prevent spam
             window.DEBUG_COORDS = false;
