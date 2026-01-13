@@ -1,19 +1,20 @@
 /**
- * VisualBlock Component - State-Based Animation Container
+ * VisualBlock Component - Konva-Based Animation Container
  * Lesson Builder System
  * 
- * Features:
- * - Dual mode: Interactive (0.5x preview) vs Export (1.0x full)
- * - Step navigation with animated transitions
- * - PNG/SVG export at 4K resolution
- * - Video export with progress indicator
+ * Clean architecture using:
+ * - StageManager (Konva.Stage wrapper)
+ * - SceneBuilder (JSON to Konva converter)
+ * - VideoService (professional video export)
+ * 
+ * No more custom rendering math - Konva handles everything.
  */
 
 import { EventBus, Events } from '../core/EventBus.js';
 import { StepNavigator } from './StepNavigator.js';
-import { StateBasedEngine } from '../visual/VisualEngine.js';
-import { KonvaRenderer } from '../visual/KonvaRenderer.js';
-import { VideoExporterV2 } from '../visual/VideoExporterV2.js';
+import { StageManager } from '../engine/StageManager.js';
+import { SceneBuilder } from '../engine/SceneBuilder.js';
+import { VideoService } from '../services/VideoService.js';
 
 /**
  * VisualBlock manager - handles multiple visual blocks
@@ -30,19 +31,16 @@ const RESOLUTION = {
 
 export const VisualBlock = {
     /**
-     * Initialize a VisualBlock instance with state-based animation
+     * Initialize a VisualBlock instance
      * @param {Object} config
      * @param {HTMLElement} config.container - Container element
      * @param {string} config.visualId - Visual identifier
      * @param {Object} config.scene - Scene definition
-     * @param {number} [config.totalSteps] - Number of steps (auto-detected from scene)
-     * @param {boolean} [config.useCanvas=true] - Use canvas renderer
      * @returns {Object} VisualBlock instance
      */
     init(config) {
-        // Support both 'scene' and 'composition' for backward compatibility
         const scene = config.scene || config.composition;
-        const totalSteps = config.totalSteps || scene?.steps?.length || 1;
+        const totalSteps = scene?.steps?.length || 1;
 
         const instance = {
             container: config.container,
@@ -51,21 +49,18 @@ export const VisualBlock = {
             state: {
                 currentStep: 1,
                 totalSteps: totalSteps,
-                isAnimating: false,
                 isExporting: false
             },
-            elements: {},
-            engine: null,
-            renderer: null,
-            stepNavigator: null,
-            animationFrame: null
+            stageManager: null,
+            sceneBuilder: null,
+            stepNavigator: null
         };
 
-        // Create canvas element
-        this._createCanvas(instance);
+        // Create container for Konva
+        this._prepareContainer(instance);
 
-        // Initialize engine and renderer
-        this._initEngine(instance);
+        // Initialize Konva stage and scene
+        this._initStage(instance);
 
         // Initialize step navigator if multi-step
         if (totalSteps > 1) {
@@ -78,111 +73,55 @@ export const VisualBlock = {
         // Store instance
         visualBlocks.set(config.visualId, instance);
 
-        // Start animation loop
-        this._startAnimationLoop(instance);
+        console.log(`[VisualBlock] Initialized "${config.visualId}" with ${totalSteps} steps`);
 
         return instance;
     },
 
     /**
-     * Create canvas element
+     * Prepare container for Konva
      * @private
      */
-    _createCanvas(instance) {
+    _prepareContainer(instance) {
         const container = instance.container.querySelector('.animation-container') ||
             instance.container.querySelector(`#${instance.visualId}-container`) ||
             instance.container;
 
-        // Create canvas wrapper with aspect ratio
-        let wrapper = container.querySelector('.visual-canvas-wrapper');
-        if (!wrapper) {
-            wrapper = document.createElement('div');
-            wrapper.className = 'visual-canvas-wrapper';
-            wrapper.style.cssText = `
+        // Create Konva container div
+        let konvaContainer = container.querySelector('.visual-konva-container');
+        if (!konvaContainer) {
+            konvaContainer = document.createElement('div');
+            konvaContainer.className = 'visual-konva-container';
+            konvaContainer.style.cssText = `
                 width: 100%;
-                height: 100%;
-                position: absolute;
-                top: 0;
-                left: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
+                max-width: 1920px;
+                aspect-ratio: 16 / 10;
+                margin: 0 auto;
+                position: relative;
             `;
-            container.appendChild(wrapper);
+            container.appendChild(konvaContainer);
         }
 
-        // Create canvas
-        let canvas = wrapper.querySelector('canvas.visual-canvas');
-        if (!canvas) {
-            canvas = document.createElement('canvas');
-            canvas.className = 'visual-canvas';
-            canvas.style.cssText = `
-                max-width: 100%;
-                max-height: 100%;
-                width: auto;
-                height: auto;
-                display: block;
-            `;
-            wrapper.appendChild(canvas);
-        }
-
-        instance.elements.wrapper = wrapper;
-        instance.elements.canvas = canvas;
-        instance.elements.animationContainer = container;
+        instance.konvaContainer = konvaContainer;
     },
 
     /**
-     * Initialize engine and renderer
+     * Initialize Konva stage and scene
      * @private
      */
-    _initEngine(instance) {
-        const canvas = instance.elements.canvas;
-
-        // Create renderer with preview resolution using Konva
-        instance.renderer = new KonvaRenderer(canvas, {
-            scale: RESOLUTION.PREVIEW,
-            width: 3840,
-            height: 2400
+    _initStage(instance) {
+        // Create StageManager
+        instance.stageManager = new StageManager(instance.konvaContainer, 3840, 2400, {
+            scale: RESOLUTION.PREVIEW
         });
 
-        // Create engine
-        instance.engine = new StateBasedEngine({
-            width: 3840,
-            height: 2400,
-            fps: 60
-        });
+        // Create SceneBuilder
+        instance.sceneBuilder = new SceneBuilder(instance.stageManager);
 
-        // Link engine to renderer
-        instance.renderer.setEngine(instance.engine);
-
-        // Load scene - support both state-based scenes and compositions
-        const scene = instance.scene;
-        if (scene) {
-            // Check if this is a state-based scene (has steps) or needs conversion
-            if (scene.steps) {
-                // State-based scene - load directly
-                instance.engine.loadScene(scene);
-                console.log(`VisualBlock: Loaded state-based scene "${instance.visualId}" with ${scene.steps.length} steps`);
-            } else if (scene.layers) {
-                // Legacy composition - convert to state-based format
-                console.warn(`VisualBlock: Legacy composition detected for "${instance.visualId}", conversion not yet implemented`);
-            } else {
-                console.warn(`VisualBlock: Unknown scene format for "${instance.visualId}"`, scene);
-            }
-        } else {
-            console.warn(`VisualBlock: No scene provided for "${instance.visualId}"`);
+        // Build scene
+        if (instance.scene) {
+            instance.sceneBuilder.build(instance.scene);
         }
-
-        // Set up callbacks
-        instance.engine.onStepChange = (stepIndex, step) => {
-            instance.state.currentStep = stepIndex + 1;
-            instance.state.isAnimating = false;
-
-            EventBus.emit(Events.VISUAL_STEP_RENDERED, {
-                visualId: instance.visualId,
-                step: stepIndex + 1
-            });
-        };
     },
 
     /**
@@ -207,34 +146,6 @@ export const VisualBlock = {
     },
 
     /**
-     * Start animation loop
-     * @private
-     */
-    _startAnimationLoop(instance) {
-        let lastTime = performance.now();
-
-        const loop = (currentTime) => {
-            const deltaTime = currentTime - lastTime;
-            lastTime = currentTime;
-
-            // Update engine
-            if (instance.engine) {
-                instance.engine.update(deltaTime);
-
-                // Render current state
-                const objects = instance.engine.getCurrentState();
-                instance.renderer.render(objects, {
-                    background: instance.scene?.background
-                });
-            }
-
-            instance.animationFrame = requestAnimationFrame(loop);
-        };
-
-        instance.animationFrame = requestAnimationFrame(loop);
-    },
-
-    /**
      * Bind export button events
      * @private
      */
@@ -244,14 +155,6 @@ export const VisualBlock = {
         pngButtons.forEach(btn => {
             btn.addEventListener('click', () => {
                 this.exportPNG(instance.visualId);
-            });
-        });
-
-        // SVG export (not supported with canvas renderer)
-        const svgButtons = instance.container.querySelectorAll('[data-export-visual="svg"]');
-        svgButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                console.warn('SVG export not available with canvas renderer');
             });
         });
 
@@ -276,12 +179,19 @@ export const VisualBlock = {
      */
     gotoStep(visualId, stepNumber, duration) {
         const instance = visualBlocks.get(visualId);
-        if (!instance?.engine) return;
+        if (!instance?.sceneBuilder) return;
 
-        instance.state.isAnimating = true;
-        instance.engine.gotoStep(stepNumber - 1, duration);
+        const stepIndex = stepNumber - 1;
+        const transitionDuration = duration ?? instance.scene?.duration ?? 1000;
 
-        // Update sync highlights
+        instance.sceneBuilder.goToStep(stepIndex, transitionDuration);
+        instance.state.currentStep = stepNumber;
+
+        EventBus.emit(Events.VISUAL_STEP_RENDERED, {
+            visualId: visualId,
+            step: stepNumber
+        });
+
         this._updateSyncHighlights(visualId, stepNumber);
     },
 
@@ -291,7 +201,7 @@ export const VisualBlock = {
      */
     nextStep(visualId) {
         const instance = visualBlocks.get(visualId);
-        if (!instance?.engine) return;
+        if (!instance) return;
 
         if (instance.state.currentStep < instance.state.totalSteps) {
             this.gotoStep(visualId, instance.state.currentStep + 1);
@@ -300,9 +210,11 @@ export const VisualBlock = {
 
     /**
      * Go to previous step
+     * @param {string} visualId
+     */
     prevStep(visualId) {
         const instance = visualBlocks.get(visualId);
-        if (!instance?.engine) return;
+        if (!instance) return;
 
         if (instance.state.currentStep > 1) {
             this.gotoStep(visualId, instance.state.currentStep - 1);
@@ -315,7 +227,7 @@ export const VisualBlock = {
      * @param {number} stepNumber - 1-indexed step number
      */
     renderStep(visualId, stepNumber) {
-        this.gotoStep(visualId, stepNumber);
+        this.gotoStep(visualId, stepNumber, 0); // Instant jump
     },
 
     /**
@@ -324,38 +236,24 @@ export const VisualBlock = {
      */
     async exportPNG(visualId) {
         const instance = visualBlocks.get(visualId);
-        if (!instance?.engine) return;
+        if (!instance) return;
 
         EventBus.emit(Events.VISUAL_EXPORT_STARTED, { format: 'png', count: 1 });
 
         try {
-            // Create temporary 4K canvas
-            const exportCanvas = document.createElement('canvas');
-            const exportRenderer = new KonvaRenderer(exportCanvas, {
+            // Export at full resolution
+            const blob = await instance.stageManager.toBlob({
                 scale: RESOLUTION.EXPORT,
-                width: 3840,
-                height: 2400
+                mimeType: 'image/png'
             });
-            exportRenderer.setEngine(instance.engine);
-
-            // Render current state at full resolution
-            const objects = instance.engine.getCurrentState();
-            exportRenderer.render(objects, instance.scene?.background);
-
-            // Get canvas and convert to blob
-            const canvas = exportRenderer.getCanvas();
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
             
-            // Download as PNG
+            // Download
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `${visualId}-step-${instance.state.currentStep}.png`;
             a.click();
             URL.revokeObjectURL(url);
-            
-            // Clean up
-            exportRenderer.destroy();
 
             EventBus.emit(Events.VISUAL_EXPORT_COMPLETE, { format: 'png', files: 1 });
         } catch (error) {
@@ -382,25 +280,28 @@ export const VisualBlock = {
         instance.state.isExporting = true;
         EventBus.emit(Events.VISUAL_EXPORT_STARTED, { format: 'video', count: 1 });
 
-        // Create simple progress UI
+        // Create progress UI
         const progressDiv = document.createElement('div');
         progressDiv.style.cssText = `
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             color: white;
-            padding: 2rem;
-            border-radius: 8px;
+            padding: 2rem 3rem;
+            border-radius: 12px;
             z-index: 10000;
             text-align: center;
-            min-width: 300px;
+            min-width: 400px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
         `;
         progressDiv.innerHTML = `
-            <h3 style="margin-top: 0;">Exporting Video...</h3>
-            <div id="progress-text">Preparing...</div>
-            <progress id="progress-bar" style="width: 100%; margin-top: 1rem;" value="0" max="100"></progress>
+            <h3 style="margin-top: 0; font-size: 1.5rem;">Exporting Video...</h3>
+            <p style="color: #94a3b8; margin: 0.5rem 0;">Using Konva.js + VideoEncoder + webm-muxer</p>
+            <div id="progress-text" style="margin: 1.5rem 0; font-size: 1.1rem; font-weight: 600;">Preparing...</div>
+            <progress id="progress-bar" style="width: 100%; height: 8px;" value="0" max="100"></progress>
+            <p style="color: #64748b; margin-top: 1rem; font-size: 0.9rem;">This may take a minute...</p>
         `;
         document.body.appendChild(progressDiv);
 
@@ -408,24 +309,24 @@ export const VisualBlock = {
         const progressBar = progressDiv.querySelector('#progress-bar');
 
         try {
-            const exporter = new VideoExporterV2({
+            const videoService = new VideoService({
                 width: 3840,
                 height: 2400,
                 fps: 60
             });
 
             // Export video with progress
-            const blob = await exporter.renderVideo(instance.scene, {
+            const blob = await videoService.export(instance.stageManager, instance.sceneBuilder, {
                 onProgress: (current, total) => {
                     const percent = Math.round((current / total) * 100);
                     progressText.textContent = `Frame ${current} / ${total} (${percent}%)`;
                     progressBar.value = percent;
                 },
-                holdFrames: 30 // Hold final step for 0.5 seconds at 60fps
+                holdFrames: 30
             });
 
-            // Download video
-            exporter.downloadVideo(blob, `${visualId}-animation.webm`);
+            // Download
+            videoService.downloadVideo(blob, `${visualId}-animation.webm`);
 
             EventBus.emit(Events.VISUAL_EXPORT_COMPLETE, { format: 'video', files: 1 });
 
@@ -468,14 +369,47 @@ export const VisualBlock = {
     },
 
     /**
-     * Get engine instance
+     * Get stage manager instance
      * @param {string} visualId
-     * @returns {StateBasedEngine|null}
+     * @returns {StageManager|null}
      */
-    getEngine(visualId) {
+    getStageManager(visualId) {
         const instance = visualBlocks.get(visualId);
-        return instance?.engine || null;
+        return instance?.stageManager || null;
     },
+
+    /**
+     * Get scene builder instance
+     * @param {string} visualId
+     * @returns {SceneBuilder|null}
+     */
+    getSceneBuilder(visualId) {
+        const instance = visualBlocks.get(visualId);
+        return instance?.sceneBuilder || null;
+    },
+
+    /**
+     * Destroy visual block and clean up
+     * @param {string} visualId
+     */
+    destroy(visualId) {
+        const instance = visualBlocks.get(visualId);
+        if (!instance) return;
+
+        // Clean up resources
+        if (instance.sceneBuilder) {
+            instance.sceneBuilder.destroy();
+        }
+        if (instance.stageManager) {
+            instance.stageManager.destroy();
+        }
+
+        // Remove from registry
+        visualBlocks.delete(visualId);
+
+        console.log(`[VisualBlock] Destroyed "${visualId}"`);
+    }
+};
 
     /**
      * Update scene definition
