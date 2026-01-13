@@ -142,6 +142,11 @@ export const StepNavigator = {
             instance.state.currentStep = newStep;
             this._updateButtons(instance);
 
+            // Enable coordinate logging for next render
+            if (typeof window !== 'undefined' && window.DEBUG_COORDS_AUTO === true) {
+                window.DEBUG_COORDS = true;
+            }
+
             // Emit event
             EventBus.emit(Events.STEP_CHANGED, {
                 visualId,

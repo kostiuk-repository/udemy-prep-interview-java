@@ -86,7 +86,23 @@ export class CanvasRenderer {
         // Clear canvas
         this.clear(options.background);
 
-        // NO continuous logging - use window.DEBUG_COORDS for on-demand logging
+        // Log coordinates ONCE per render call (not per object)
+        const shouldLog = typeof window !== 'undefined' && window.DEBUG_COORDS === true;
+        if (shouldLog) {
+            console.log(`[CANVAS] Screen bounds: width=${this.width}, height=${this.height}, scale=${this.scale}`);
+            console.log('[CANVAS] Objects to render:', objects.length);
+            
+            // Log summary of all objects
+            objects.forEach(obj => {
+                const props = obj.props || {};
+                const x = (props.x ?? 0) * this.width / 100;
+                const y = (props.y ?? 0) * this.height / 100;
+                console.log(`  - ${obj.id}: type=${obj.type}, x%=${props.x}, y%=${props.y}, px=(${x.toFixed(0)},${y.toFixed(0)})`);
+            });
+            
+            // Auto-disable after one render to prevent spam
+            window.DEBUG_COORDS = false;
+        }
 
         // Build object map for connection arrows
         this.objectMap.clear();
@@ -191,88 +207,7 @@ export class CanvasRenderer {
         if (props.strokeWidth) ctx.lineWidth = props.strokeWidth / totalScale;
 
         // Render based on type
-        // Debug coordinates only on explicit request: window.DEBUG_COORDS = true
-        try {
-            const shouldLog = typeof window !== 'undefined' && window.DEBUG_COORDS === true;
-            if (shouldLog) {
-                let baseW = 0, baseH = 0;
-                switch (obj.type) {
-                    case 'rect':
-                    case 'image':
-                        baseW = this._toPixels(props.width ?? 10, 'width');
-                        baseH = this._toPixels(props.height ?? 10, 'height');
-                        break;
-                    case 'circle': {
-                        const r = this._toPixels(props.radius ?? props.r ?? 5, 'width');
-                        baseW = r * 2; baseH = r * 2;
-                        break;
-                    }
-                    case 'ellipse': {
-                        const rx = this._toPixels(props.rx ?? 5, 'width');
-                        const ry = this._toPixels(props.ry ?? 3, 'height');
-                        baseW = rx * 2; baseH = ry * 2;
-                        break;
-                    }
-                    case 'line': {
-                        const x1 = this._toPixels(props.x1 ?? 0, 'width');
-                        const y1 = this._toPixels(props.y1 ?? 0, 'height');
-                        const x2 = this._toPixels(props.x2 ?? 10, 'width');
-                        const y2 = this._toPixels(props.y2 ?? 10, 'height');
-                        baseW = Math.abs(x2 - x1);
-                        baseH = Math.abs(y2 - y1);
-                        break;
-                    }
-                    case 'text': {
-                        const baseFontSize = props.fontSize ?? 16;
-                        const fontSize = baseFontSize * this.scale * this.fontScale;
-                        const fontFamily = props.fontFamily || 'Inter, sans-serif';
-                        const fontWeight = props.fontWeight || 'normal';
-                        const prevFont = ctx.font;
-                        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-                        const text = props.text || '';
-                        baseW = ctx.measureText(text).width;
-                        baseH = fontSize; // approximate line height
-                        ctx.font = prevFont;
-                        break;
-                    }
-                    case 'polygon':
-                    case 'polyline':
-                    default:
-                        baseW = this._toPixels(props.width ?? 0, 'width');
-                        baseH = this._toPixels(props.height ?? 0, 'height');
-                        break;
-                }
-
-                const finalW = baseW * totalScale;
-                const finalH = baseH * totalScale;
-
-                // Calculate corner coordinates (center-based object)
-                const left = x - finalW / 2;
-                const right = x + finalW / 2;
-                const top = y - finalH / 2;
-                const bottom = y + finalH / 2;
-
-                console.log(
-                    '[Render Coords]',
-                    'ID:', obj.id,
-                    '| Type:', obj.type,
-                    '| Pos: (' + Number(x.toFixed(0)) + ',' + Number(y.toFixed(0)) + ')',
-                    '| Size: ' + Number(finalW.toFixed(0)) + 'x' + Number(finalH.toFixed(0)),
-                    '| Bounds: TL(' + Number(left.toFixed(0)) + ',' + Number(top.toFixed(0)) + ')',
-                    'BR(' + Number(right.toFixed(0)) + ',' + Number(bottom.toFixed(0)) + ')',
-                    '| Scale:' + Number(totalScale.toFixed(2)),
-                    '| Z:' + z,
-                    '| Opacity:' + ctx.globalAlpha.toFixed(2)
-                );
-
-                // Check if object is off-screen or clipped
-                if (right < 0 || left > this.width || bottom < 0 || top > this.height) {
-                    console.warn('[OFF SCREEN]', obj.id, 'is outside canvas bounds!');
-                }
-            }
-        } catch (e) {
-            console.warn('CanvasRenderer debug logging failed:', e);
-        }
+        // NO per-object logging - all logging done once per render() call
 
         switch (obj.type) {
             case 'rect':

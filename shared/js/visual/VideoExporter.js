@@ -143,6 +143,20 @@ export class VideoExporter {
         // Small delay for recorder initialization
         await new Promise(r => setTimeout(r, 50));
 
+        // Log first frame coordinates if DEBUG_COORDS is set
+        const debugCoords = typeof window !== 'undefined' && window.DEBUG_COORDS === true;
+        if (debugCoords) {
+            console.log('=== DEBUG: First frame coordinates ===');
+            engine.seekToFrame(0);
+            const firstState = engine.getCurrentState();
+            console.log('Objects:', firstState.length);
+            firstState.forEach(obj => {
+                const props = obj.props || {};
+                console.log(`  ${obj.id}: x=${props.x}%, y=${props.y}%, opacity=${props.opacity ?? 1}`);
+            });
+            console.log('=====================================');
+        }
+
         try {
             // Render each frame deterministically
             for (let frame = 0; frame < animationFrames; frame++) {
