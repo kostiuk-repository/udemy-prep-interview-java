@@ -50,17 +50,13 @@ export class VideoExporter {
     async renderVideo(scene, options = {}) {
         const { onProgress, holdFrames = 30 } = options;
 
-        console.log('=== VIDEO EXPORT START (Deterministic Mode) ===');
+        console.log('=== VIDEO EXPORT START ===');
         console.log('Scene:', scene?.id || 'unknown');
-        console.log('Steps count:', scene?.steps?.length || 0);
 
         if (!scene || !scene.steps || scene.steps.length === 0) {
             console.error('VideoExporter: No scene or steps provided!');
             throw new Error('Invalid scene: no steps defined');
         }
-
-        // Initialization diagnostics
-        console.log('Init params -> width:', this.width, 'height:', this.height, 'fps:', this.fps, 'bitrate:', this.bitrate);
 
         // Create canvas and renderer
         const canvas = document.createElement('canvas');
@@ -118,20 +114,17 @@ export class VideoExporter {
         const animationFrames = engine.getTotalFrames();
         const totalFrames = animationFrames + holdFrames;
         const durationMs = (totalFrames / this.fps) * 1000;
-        console.log('Animation frames:', animationFrames, 'Hold frames:', holdFrames, 'Total:', totalFrames);
-        console.log('Expected duration:', durationMs.toFixed(0), 'ms');
+        console.log('Frames:', animationFrames, '+ hold:', holdFrames, 'Total:', totalFrames, 'Duration:', durationMs.toFixed(0), 'ms');
 
         const recordingPromise = new Promise(resolve => {
             recorder.onstop = async () => {
                 console.log('Recording complete. Chunks:', chunks.length);
 
                 let blob = new Blob(chunks, { type: mimeType });
-                console.log('Raw blob size:', blob.size, 'bytes', 'type:', blob.type);
 
                 // Fix WebM duration metadata
                 try {
                     blob = await fixWebMDuration(blob, durationMs);
-                    console.log('Duration fixed:', durationMs.toFixed(0), 'ms');
                 } catch (err) {
                     console.warn('Duration fix failed:', err);
                 }
@@ -152,7 +145,6 @@ export class VideoExporter {
 
         try {
             // Render each frame deterministically
-            let lastLoggedStep = -1;
             for (let frame = 0; frame < animationFrames; frame++) {
                 if (!this.isRecording) break;
 
@@ -160,15 +152,7 @@ export class VideoExporter {
                 engine.seekToFrame(frame);
                 const state = engine.getCurrentState();
 
-                // Log step transitions ONLY
-                const currentStep = engine.currentStepIndex;
-                if (currentStep !== lastLoggedStep) {
-                    console.log(`[VIDEO] Step transition: frame ${frame} -> step ${currentStep}`);
-                    console.log(`[VIDEO] Current state objects:`, state.length, 'ids:', state.map(o => o.id));
-                    lastLoggedStep = currentStep;
-                }
-
-                // NO per-frame logging to avoid spam
+                // NO logging during export - prevent console spam
 
                 // Render to canvas
                 renderer.render(state, { background: scene.background });
@@ -259,8 +243,6 @@ async function fixWebMDuration(blob, durationMs) {
     const buffer = await blob.arrayBuffer();
     const data = new Uint8Array(buffer);
 
-    console.log('fixWebMDuration: input buffer size =', data.length, 'bytes');
-
     // Find the Segment Info element and patch duration
     const fixed = patchWebMDuration(data, durationMs);
 
@@ -286,7 +268,6 @@ function patchWebMDuration(data, durationMs) {
 
         // Find Segment element
         let pos = findEBMLElement(data, SEGMENT_ID, 0);
-        console.log('patchWebMDuration: data.length =', data.length, 'segmentPos =', pos);
         if (pos === -1) return data;
 
         // Skip Segment header
@@ -295,14 +276,12 @@ function patchWebMDuration(data, durationMs) {
 
         // Find Info element within Segment
         const infoPos = findEBMLElement(data, SEGMENT_INFO_ID, pos);
-        console.log('patchWebMDuration: infoPos =', infoPos);
         if (infoPos === -1) return data;
 
         // Get Info element size and content position
         const infoHeaderEnd = skipEBMLHeader(data, infoPos);
         const infoSize = readEBMLSize(data, infoPos + SEGMENT_INFO_ID.length);
         const infoEnd = infoHeaderEnd + infoSize.value;
-        console.log('patchWebMDuration: infoHeaderEnd =', infoHeaderEnd, 'infoSize =', infoSize, 'infoEnd =', infoEnd, 'bufferLen =', data.length);
         if (!inBounds(infoHeaderEnd) || !inBounds(infoEnd) || infoEnd > data.length) return data;
 
         // Get TimecodeScale (default 1000000 = 1ms precision)
@@ -323,11 +302,9 @@ function patchWebMDuration(data, durationMs) {
         // Check if Duration already exists
         const existingDuration = findEBMLElement(data, DURATION_ID, infoHeaderEnd, infoEnd);
         if (existingDuration !== -1) {
-            console.log('patchWebMDuration: existing Duration at', existingDuration);
             const durHeaderEnd = existingDuration + DURATION_ID.length;
             const durSize = readEBMLSize(data, durHeaderEnd);
             const durValuePos = durHeaderEnd + durSize.length;
-            console.log('patchWebMDuration: durHeaderEnd =', durHeaderEnd, 'durSize =', durSize, 'durValuePos =', durValuePos);
 
             // Expect 8-byte float; if not, bail out safely
             if (durSize.value !== 8) return data;
