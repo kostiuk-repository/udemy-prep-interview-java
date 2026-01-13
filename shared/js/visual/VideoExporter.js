@@ -152,12 +152,27 @@ export class VideoExporter {
 
         try {
             // Render each frame deterministically
+            let lastLoggedStep = -1;
             for (let frame = 0; frame < animationFrames; frame++) {
                 if (!this.isRecording) break;
 
                 // Compute state for this frame
                 engine.seekToFrame(frame);
                 const state = engine.getCurrentState();
+
+                // Log step transitions
+                const currentStep = engine.currentStepIndex;
+                if (currentStep !== lastLoggedStep) {
+                    console.log(`[VIDEO] Step transition: frame ${frame} -> step ${currentStep}`);
+                    console.log(`[VIDEO] Current state objects:`, state.size, 'ids:', Array.from(state.keys()));
+                    lastLoggedStep = currentStep;
+                }
+
+                // Log every frame if DEBUG_RENDER, otherwise every 30 frames
+                const debugEnabled = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
+                if (debugEnabled || frame % 30 === 0) {
+                    console.log(`[VIDEO FRAME]`, frame, `/ ${animationFrames}, step:`, currentStep, `state objects:`, state.size);
+                }
 
                 // Render to canvas
                 renderer.render(state, { background: scene.background });
