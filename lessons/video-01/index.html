@@ -171,8 +171,8 @@
     
     <!-- webm-muxer - WebM Container Creation -->
     <script type="module">
-        // Import webm-muxer (ESM) from CDN
-        import { Muxer, ArrayBufferTarget } from 'https://cdn.jsdelivr.net/npm/webm-muxer@4.1.2/dist/webm-muxer.mjs';
+        // Import webm-muxer (ESM) from CDN (jsDelivr ESM path)
+        import { Muxer, ArrayBufferTarget } from 'https://cdn.jsdelivr.net/npm/webm-muxer@4.1.2/dist/webm-muxer.esm.js';
 
         // Make available globally
         window.WebmMuxer = { Muxer, ArrayBufferTarget };

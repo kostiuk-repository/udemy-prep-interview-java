@@ -113,6 +113,11 @@ export class SceneBuilder {
      */
     processObject(objDef, duration) {
         const existingNode = this.objects.get(objDef.id);
+
+        // If type is omitted (update step), infer from existing node metadata
+        if (!objDef.type && existingNode) {
+            objDef.type = existingNode.getAttr('objectType');
+        }
         
         if (existingNode) {
             // Update existing object
@@ -237,6 +242,24 @@ export class SceneBuilder {
                 break;
             }
             
+            case 'path': {
+                const width = props.width ? this.stageManager.toPixels(props.width, 'x') : undefined;
+                const height = props.height ? this.stageManager.toPixels(props.height, 'y') : undefined;
+
+                node = new Konva.Path({
+                    ...commonProps,
+                    data: props.d ?? '',
+                    fill: props.fill ?? props.color ?? 'transparent',
+                    stroke: props.stroke ?? props.color,
+                    strokeWidth: props.strokeWidth ?? props.width ?? 2,
+                    width: width,
+                    height: height,
+                    offsetX: width ? width / 2 : 0,
+                    offsetY: height ? height / 2 : 0
+                });
+                break;
+            }
+
             case 'group': {
                 node = new Konva.Group(commonProps);
                 
@@ -258,6 +281,10 @@ export class SceneBuilder {
                 return null;
         }
         
+        if (node) {
+            node.setAttr('objectType', objDef.type);
+        }
+
         return node;
     }
     
@@ -309,6 +336,10 @@ export class SceneBuilder {
                 targetProps.fontSize = props.fontSize * 2.5;
             }
             if (props.fill || props.color) targetProps.fill = props.fill ?? props.color;
+        } else if (objDef.type === 'path') {
+            if (props.d !== undefined) targetProps.data = props.d;
+            if (props.fill || props.color) targetProps.fill = props.fill ?? props.color;
+            if (props.stroke) targetProps.stroke = props.stroke;
         }
         
         // Animate to target properties
@@ -349,6 +380,16 @@ export class SceneBuilder {
      * @param {number} duration - Duration in ms
      */
     fadeOut(node, duration) {
+        // If node is already destroyed or not in a layer, skip tween
+        if (!node.getLayer()) {
+            const id = node.getAttr('objectId');
+            node.destroy();
+            if (id) {
+                this.objects.delete(id);
+            }
+            return;
+        }
+
         const tween = new Konva.Tween({
             node: node,
             duration: duration / 1000,
