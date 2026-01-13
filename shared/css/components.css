@@ -798,3 +798,20 @@ body {
         flex-wrap: wrap;
     }
 }
+
+/* ==========================================================================
+   KONVA RESPONSIVE FIX
+   ========================================================================== */
+
+/* Змушуємо контейнер Konva заповнювати батьківський блок */
+.visual-konva-container .konvajs-content {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16 / 10; /* Зберігаємо пропорцію 16:10 */
+}
+
+/* Змушуємо саме полотно (canvas) масштабуватися */
+.visual-konva-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}

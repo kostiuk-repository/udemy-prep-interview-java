@@ -171,11 +171,12 @@
     
     <!-- webm-muxer - WebM Container Creation -->
     <script type="module">
-        // Import webm-muxer (ESM) from unpkg with module flag
-        import { Muxer, ArrayBufferTarget } from 'https://unpkg.com/webm-muxer@4.1.2?module';
+        // Використовуємо esm.sh, який краще працює з CORS
+        import { Muxer, ArrayBufferTarget } from 'https://esm.sh/webm-muxer@5.0.2';
 
-        // Make available globally
+        // Робимо доступним глобально для VideoService.js
         window.WebmMuxer = { Muxer, ArrayBufferTarget };
+        console.log("✅ WebM Muxer loaded successfully");
     </script>
 
     <!-- Initialize Lesson -->
