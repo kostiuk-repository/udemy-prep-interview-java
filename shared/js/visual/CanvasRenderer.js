@@ -87,7 +87,7 @@ export class CanvasRenderer {
         this.clear(options.background);
 
         // Log coordinates ONCE per render call (not per object)
-        const shouldLog = typeof window !== 'undefined' && window.DEBUG_COORDS === true;
+        const shouldLog = typeof window !== 'undefined' && window.DEBUG === true;
         if (shouldLog) {
             console.log(`[CANVAS] Screen bounds: width=${this.width}, height=${this.height}, scale=${this.scale}`);
             console.log('[CANVAS] Objects to render:', objects.length);
@@ -190,11 +190,26 @@ export class CanvasRenderer {
         const ctx = this.ctx;
         const props = obj.props || {};
 
+        // Debug rendering details
+        const debug = typeof window !== 'undefined' && window.DEBUG === true;
+        if (debug && !obj.__logged_render) {
+            obj.__logged_render = true;
+            console.log(`\n[RENDER] ${obj.id} [${obj.type}]`);
+            console.log(`  Props: x=${props.x}% y=${props.y}% width=${props.width} height=${props.height}`);
+        }
+
         ctx.save();
 
         // Calculate position in pixels (convert from %)
         let x = (props.x ?? 0) * this.width / 100;
         let y = (props.y ?? 0) * this.height / 100;
+
+        if (debug && !obj.__logged_coords) {
+            obj.__logged_coords = true;
+            console.log(`  Canvas size: ${this.width}×${this.height}, scale=${this.scale}`);
+            console.log(`  Position calc: x=${(props.x ?? 0)}% * ${this.width} / 100 = ${x.toFixed(0)}px`);
+            console.log(`  Position calc: y=${(props.y ?? 0)}% * ${this.height} / 100 = ${y.toFixed(0)}px`);
+        }
 
         // Apply parent transform if nested
         if (parentTransform) {
@@ -206,6 +221,11 @@ export class CanvasRenderer {
 
             x = parentTransform.x + (localX * cos - localY * sin) * parentTransform.scale;
             y = parentTransform.y + (localX * sin + localY * cos) * parentTransform.scale;
+            
+            if (debug && !obj.__logged_parent) {
+                obj.__logged_parent = true;
+                console.log(`  Parent transform applied: x=${x.toFixed(0)}px, y=${y.toFixed(0)}px`);
+            }
         }
 
         // Z-depth scaling
@@ -224,7 +244,6 @@ export class CanvasRenderer {
         // Apply depth-of-field for background objects
         if (this.depthOfField && z < 0) {
             ctx.globalAlpha *= Math.max(0.6, 1 + z * 0.005);
-            // Note: filter blur would require additional canvas compositing
         }
 
         // Apply shadow
@@ -238,33 +257,31 @@ export class CanvasRenderer {
         if (props.strokeWidth) ctx.lineWidth = props.strokeWidth / totalScale;
 
         // Render based on type
-        // NO per-object logging - all logging done once per render() call
-
         switch (obj.type) {
             case 'rect':
-                this._renderRect(props);
+                this._renderRect(props, debugRender, obj.id);
                 break;
             case 'circle':
-                this._renderCircle(props);
+                this._renderCircle(props, debugRender, obj.id);
                 break;
             case 'ellipse':
-                this._renderEllipse(props);
+                this._renderEllipse(props, debugRender, obj.id);
                 break;
             case 'text':
-                this._renderText(props);
+                this._renderText(props, debugRender, obj.id);
                 break;
             case 'line':
-                this._renderLine(props);
+                this._renderLine(props, debugRender, obj.id);
                 break;
             case 'path':
-                this._renderPath(props);
+                this._renderPath(props, debugRender, obj.id);
                 break;
             case 'image':
-                this._renderImage(props);
+                this._renderImage(props, debugRender, obj.id);
                 break;
             case 'polygon':
             case 'polyline':
-                this._renderPolygon(props, obj.type);
+                this._renderPolygon(props, obj.type, debugRender, obj.id);
                 break;
             case 'group':
                 this._renderGroup(obj, { x, y, scale: totalScale, rotation: props.rotation ?? 0, opacity: ctx.globalAlpha });
@@ -293,12 +310,17 @@ export class CanvasRenderer {
      * Render rectangle
      * @private
      */
-    _renderRect(props) {
+    _renderRect(props, shouldDebug = false, id = '') {
         const ctx = this.ctx;
         const width = this._toPixels(props.width ?? 10, 'width');
         const height = this._toPixels(props.height ?? 10, 'height');
         const rx = props.rx ?? 0;
         const ry = props.ry ?? rx;
+
+        if (shouldDebug) {
+            console.log(`  Rect calc: width=${props.width} → ${width.toFixed(0)}px, height=${props.height} → ${height.toFixed(0)}px`);
+            console.log(`  Rect centered: x=[${(-width/2).toFixed(0)}, ${(width/2).toFixed(0)}] y=[${(-height/2).toFixed(0)}, ${(height/2).toFixed(0)}]`);
+        }
 
         // Draw centered on position
         const x = -width / 2;

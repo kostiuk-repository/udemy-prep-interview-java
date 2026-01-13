@@ -143,8 +143,8 @@ export const StepNavigator = {
             this._updateButtons(instance);
 
             // Enable coordinate logging for next render
-            if (typeof window !== 'undefined' && window.DEBUG_COORDS_AUTO === true) {
-                window.DEBUG_COORDS = true;
+if (typeof window !== 'undefined' && window.DEBUG === true) {
+            // Debug enabled via global DEBUG flag
             }
 
             // Emit event

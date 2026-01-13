@@ -502,24 +502,62 @@ function patchWebMDuration(data, durationMs) {
             const durSize = readEBMLSize(data, durHeaderEnd);
             const durValuePos = durHeaderEnd + durSize.length;
 
-            // Expect 8-byte float; if not, bail out safely
-            if (durSize.value !== 8) {
-                console.log(`  [PATCH] Existing Duration size is ${durSize.value}, not 8 - skipping replacement`);
-                return data;
+            console.log(`  [PATCH] Existing Duration: size=${durSize.value} bytes, value position=${durValuePos}`);
+
+            // If it's 8 bytes (float64), replace in-place
+            if (durSize.value === 8) {
+                console.log(`  [PATCH] Duration is 8-byte float64, replacing in-place...`);
+                if (!inBounds(durValuePos + 8)) {
+                    console.log('  [PATCH] Duration value position out of bounds');
+                    return data;
+                }
+                const result = new Uint8Array(data.length);
+                result.set(data.subarray(0, durValuePos), 0);
+                result.set(durationBytes, durValuePos);
+                result.set(data.subarray(durValuePos + 8), durValuePos + 8);
+                console.log(`  [PATCH] ✓ Duration value replaced (8 bytes)`);
+                return result;
             }
 
-            // Bounds checks for writes
-            if (!inBounds(durValuePos + 8)) {
-                console.log('  [PATCH] Duration value position out of bounds');
-                return data;
+            // If it's 4 bytes (float32), need to remove old and insert new 8-byte version
+            if (durSize.value === 4) {
+                console.log(`  [PATCH] Duration is 4-byte float32, removing old and inserting 8-byte version...`);
+                
+                // Remove old Duration element (ID + Size + Value)
+                const oldElementSize = DURATION_ID.length + durSize.length + durSize.value;
+                const removeStart = existingDuration;
+                const removeEnd = removeStart + oldElementSize;
+
+                // Create new 8-byte Duration element
+                const newDurationElement = new Uint8Array(11); // ID(2) + Size(1) + Value(8)
+                newDurationElement[0] = 0x44;
+                newDurationElement[1] = 0x89;
+                newDurationElement[2] = 0x88; // size = 8
+                newDurationElement.set(durationBytes, 3);
+
+                // Rebuild data: before old + new element + after old
+                const newData = new Uint8Array(data.length - oldElementSize + 11);
+                newData.set(data.subarray(0, removeStart), 0);
+                newData.set(newDurationElement, removeStart);
+                newData.set(data.subarray(removeEnd), removeStart + 11);
+
+                // Update Info size
+                const newInfoSize = infoSize.value - oldElementSize + 11;
+                const newSizeBytes = encodeEBMLSize(newInfoSize, infoSize.length);
+                const sizePos = infoPos + SEGMENT_INFO_ID.length;
+                if (inBounds(sizePos + infoSize.length)) {
+                    for (let i = 0; i < infoSize.length; i++) {
+                        newData[sizePos + i] = newSizeBytes[i];
+                    }
+                    console.log(`  [PATCH] ✓ Duration element replaced (4→8 bytes, size adjusted)`);
+                }
+
+                return newData;
             }
 
-            const result = new Uint8Array(data.length);
-            result.set(data.subarray(0, durValuePos), 0);
-            result.set(durationBytes, durValuePos);
-            result.set(data.subarray(durValuePos + 8), durValuePos + 8);
-            console.log(`  [PATCH] ✓ Duration value replaced`);
-            return result;
+            // Unsupported size
+            console.log(`  [PATCH] ⚠️ Duration size ${durSize.value} not supported, skipping`);
+            return data;
         }
 
         // Insert new Duration element
