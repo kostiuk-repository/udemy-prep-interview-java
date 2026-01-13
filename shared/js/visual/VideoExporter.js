@@ -250,6 +250,12 @@ export class VideoExporter {
             console.log('=== VIDEO EXPORT COMPLETE ===');
             console.log('Final size:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
 
+            // Log WebM playback info
+            console.log('=== VIDEO PLAYBACK INFO ===');
+            console.log('Expected playback: 246 frames @ 60fps = 4.1 seconds');
+            console.log('If video plays <1 second, WebM metadata may be corrupted');
+            console.log('Check browser developer tools > Inspector > Video properties for actual framerate');
+
             return blob;
 
         } catch (err) {
@@ -302,10 +308,107 @@ async function fixWebMDuration(blob, durationMs) {
     const buffer = await blob.arrayBuffer();
     const data = new Uint8Array(buffer);
 
+    // Log WebM info BEFORE patching
+    console.log('=== WEBM CONTAINER INFO ===');
+    console.log('Blob size:', (blob.size / 1024).toFixed(1), 'KB');
+    console.log('Expected duration:', durationMs, 'ms');
+    logWebMInfo(data);
+
     // Find the Segment Info element and patch duration
     const fixed = patchWebMDuration(data, durationMs);
 
     return new Blob([fixed], { type: 'video/webm' });
+}
+
+/**
+ * Log WebM container information
+ */
+function logWebMInfo(data) {
+    const SEGMENT_INFO_ID = [0x15, 0x49, 0xA9, 0x66];
+    const DURATION_ID = [0x44, 0x89];
+    const TIMECODE_SCALE_ID = [0x2A, 0xD7, 0xB1];
+    const CLUSTER_ID = [0x1F, 0x43, 0xB6, 0x75];
+    const SIMPLE_BLOCK_ID = [0xA3];
+
+    try {
+        // Find Info element
+        let infoPos = findEBMLElement(data, SEGMENT_INFO_ID, 0);
+        if (infoPos === -1) {
+            console.log('  ⚠️ Info element not found');
+            return;
+        }
+
+        const infoHeaderEnd = skipEBMLHeader(data, infoPos);
+        const infoSize = readEBMLSize(data, infoPos + SEGMENT_INFO_ID.length);
+        const infoEnd = infoHeaderEnd + infoSize.value;
+
+        // Get TimecodeScale
+        let timecodeScale = 1000000;
+        const tcPos = findEBMLElement(data, TIMECODE_SCALE_ID, infoHeaderEnd, infoEnd);
+        if (tcPos !== -1) {
+            const tcHeaderEnd = skipEBMLHeader(data, tcPos);
+            const tcSize = readEBMLSize(data, tcPos + TIMECODE_SCALE_ID.length);
+            timecodeScale = readUnsignedInt(data, tcHeaderEnd, tcSize.value);
+            console.log(`  TimecodeScale: ${timecodeScale} (1 unit = ${timecodeScale/1000000} ms)`);
+        }
+
+        // Get existing Duration
+        const durPos = findEBMLElement(data, DURATION_ID, infoHeaderEnd, infoEnd);
+        if (durPos !== -1) {
+            const durHeaderEnd = durPos + DURATION_ID.length;
+            const durSize = readEBMLSize(data, durHeaderEnd);
+            const durValuePos = durHeaderEnd + durSize.length;
+            if (durSize.value === 8) {
+                const durationValue = readFloat64(data, durValuePos);
+                const durationMs = (durationValue * timecodeScale) / 1000000;
+                console.log(`  Duration in metadata: ${durationValue.toFixed(1)} units = ${durationMs.toFixed(0)}ms (${(durationMs/1000).toFixed(2)}s playback)`);
+            }
+        } else {
+            console.log('  Duration in metadata: NONE');
+        }
+
+        // Count blocks in first Cluster
+        const clusterPos = findEBMLElement(data, CLUSTER_ID, infoEnd);
+        if (clusterPos !== -1) {
+            const clusterHeaderEnd = skipEBMLHeader(data, clusterPos);
+            const clusterSize = readEBMLSize(data, clusterPos + CLUSTER_ID.length);
+            const clusterEnd = clusterHeaderEnd + clusterSize.value;
+            
+            let blockCount = 0;
+            let blockPos = clusterHeaderEnd;
+            const maxTimecode = [];
+            
+            while (blockPos < clusterEnd && blockCount < 5) {
+                const block = findEBMLElement(data, SIMPLE_BLOCK_ID, blockPos, clusterEnd);
+                if (block === -1) break;
+                blockCount++;
+                
+                // Extract timestamp from SimpleBlock
+                const blockHeaderEnd = block + SIMPLE_BLOCK_ID.length;
+                const blockSize = readEBMLSize(data, blockHeaderEnd);
+                const timecodeStart = blockHeaderEnd + blockSize.length;
+                
+                if (timecodeStart + 2 < clusterEnd) {
+                    const tc = (data[timecodeStart] << 8) | data[timecodeStart + 1];
+                    const tcMs = (tc * timecodeScale) / 1000000;
+                    maxTimecode.push(tcMs);
+                }
+                
+                blockPos = block + 1;
+            }
+            
+            if (blockCount > 0) {
+                console.log(`  First cluster: ${blockCount} blocks, timecodes: ${maxTimecode.map(t => t.toFixed(0)).join(', ')}ms`);
+                if (maxTimecode.length >= 2) {
+                    const frameInterval = maxTimecode[1] - maxTimecode[0];
+                    const detectedFPS = 1000 / frameInterval;
+                    console.log(`  Detected framerate from blocks: ~${detectedFPS.toFixed(1)} fps`);
+                }
+            }
+        }
+    } catch (e) {
+        console.log('  WebM info parse error:', e.message);
+    }
 }
 
 /**
@@ -513,6 +616,18 @@ function encodeFloat64(value) {
     const view = new DataView(buffer);
     view.setFloat64(0, value, false); // big-endian
     return new Uint8Array(buffer);
+}
+
+/**
+ * Read float64 value from bytes (big-endian)
+ */
+function readFloat64(data, pos) {
+    const buffer = new ArrayBuffer(8);
+    const view = new Uint8Array(buffer);
+    for (let i = 0; i < 8; i++) {
+        view[i] = data[pos + i];
+    }
+    return new DataView(buffer).getFloat64(0, false); // big-endian
 }
 
 // ==========================================================================

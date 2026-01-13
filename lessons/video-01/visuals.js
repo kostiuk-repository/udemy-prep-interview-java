@@ -1028,7 +1028,7 @@ export const spiderFrameworkScene = {
                     type: 'group',
                     props: { x: 50, y: 20, z: 10, shadow: SHADOW },
                     children: [
-                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.emerald, strokeWidth: 2, rx: 8 } },
+                        { type: 'rect', props: { width: 50, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.emerald, strokeWidth: 2, rx: 8 } },
                         { type: 'text', props: { x: -28, text: 'S', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.emerald } },
                         { type: 'text', props: { x: 5, text: 'Scope: Clarify requirements', fontSize: 22, fill: COLORS.text.primary } }
                     ]
@@ -1048,7 +1048,7 @@ export const spiderFrameworkScene = {
                     type: 'group',
                     props: { x: 50, y: 32, z: 10, shadow: SHADOW },
                     children: [
-                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.blue, strokeWidth: 2, rx: 8 } },
+                        { type: 'rect', props: { width: 50, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.blue, strokeWidth: 2, rx: 8 } },
                         { type: 'text', props: { x: -28, text: 'P', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.blue } },
                         { type: 'text', props: { x: 5, text: 'Plan: Structure verbally', fontSize: 22, fill: COLORS.text.primary } }
                     ]
@@ -1069,7 +1069,7 @@ export const spiderFrameworkScene = {
                     type: 'group',
                     props: { x: 50, y: 44, z: 10, shadow: SHADOW },
                     children: [
-                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.violet, strokeWidth: 2, rx: 8 } },
+                        { type: 'rect', props: { width: 50, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.violet, strokeWidth: 2, rx: 8 } },
                         { type: 'text', props: { x: -28, text: 'I', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.violet } },
                         { type: 'text', props: { x: 5, text: 'Implement: Production code', fontSize: 22, fill: COLORS.text.primary } }
                     ]
@@ -1089,7 +1089,7 @@ export const spiderFrameworkScene = {
                     type: 'group',
                     props: { x: 50, y: 56, z: 10, shadow: SHADOW },
                     children: [
-                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.amber, strokeWidth: 2, rx: 8 } },
+                        { type: 'rect', props: { width: 50, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.amber, strokeWidth: 2, rx: 8 } },
                         { type: 'text', props: { x: -28, text: 'D', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.amber } },
                         { type: 'text', props: { x: 5, text: 'Debug: Trace edge cases', fontSize: 22, fill: COLORS.text.primary } }
                     ]
@@ -1109,7 +1109,7 @@ export const spiderFrameworkScene = {
                     type: 'group',
                     props: { x: 50, y: 68, z: 10, shadow: SHADOW },
                     children: [
-                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.rose, strokeWidth: 2, rx: 8 } },
+                        { type: 'rect', props: { width: 50, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.rose, strokeWidth: 2, rx: 8 } },
                         { type: 'text', props: { x: -28, text: 'E', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.rose } },
                         { type: 'text', props: { x: 5, text: 'Evaluate: Trade-offs', fontSize: 22, fill: COLORS.text.primary } }
                     ]
@@ -1129,7 +1129,7 @@ export const spiderFrameworkScene = {
                     type: 'group',
                     props: { x: 50, y: 80, z: 10, shadow: SHADOW },
                     children: [
-                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.cyan, strokeWidth: 2, rx: 8 } },
+                        { type: 'rect', props: { width: 50, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.cyan, strokeWidth: 2, rx: 8 } },
                         { type: 'text', props: { x: -28, text: 'R', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.cyan } },
                         { type: 'text', props: { x: 5, text: 'Refine: Optimize', fontSize: 22, fill: COLORS.text.primary } }
                     ]
