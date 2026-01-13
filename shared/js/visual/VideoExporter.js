@@ -252,106 +252,105 @@ async function fixWebMDuration(blob, durationMs) {
 }
 
 /**
- * Patch WebM EBML to include Duration
+ * Patch WebM EBML to include Duration (bounds-safe)
  * @param {Uint8Array} data - Original WebM data
  * @param {number} durationMs - Duration in milliseconds
  * @returns {Uint8Array} Patched data
  */
 function patchWebMDuration(data, durationMs) {
-    // EBML element IDs for WebM
-    const SEGMENT_ID = [0x18, 0x53, 0x80, 0x67];         // Segment
-    const SEGMENT_INFO_ID = [0x15, 0x49, 0xA9, 0x66];    // Info (inside Segment)
-    const DURATION_ID = [0x44, 0x89];                    // Duration (inside Info)
-    const TIMECODE_SCALE_ID = [0x2A, 0xD7, 0xB1];        // TimecodeScale
+    try {
+        // EBML element IDs for WebM
+        const SEGMENT_ID = [0x18, 0x53, 0x80, 0x67];         // Segment
+        const SEGMENT_INFO_ID = [0x15, 0x49, 0xA9, 0x66];    // Info (inside Segment)
+        const DURATION_ID = [0x44, 0x89];                    // Duration (inside Info)
+        const TIMECODE_SCALE_ID = [0x2A, 0xD7, 0xB1];        // TimecodeScale
 
-    // Find Segment element
-    let pos = findEBMLElement(data, SEGMENT_ID, 0);
-    if (pos === -1) {
-        console.warn('Could not find Segment element');
-        return data;
-    }
+        // Helper: quick bounds check
+        const inBounds = (idx) => idx >= 0 && idx <= data.length;
 
-    // Skip Segment header
-    pos = skipEBMLHeader(data, pos);
+        // Find Segment element
+        let pos = findEBMLElement(data, SEGMENT_ID, 0);
+        if (pos === -1) return data;
 
-    // Find Info element within Segment
-    const infoPos = findEBMLElement(data, SEGMENT_INFO_ID, pos);
-    if (infoPos === -1) {
-        console.warn('Could not find Info element');
-        return data;
-    }
+        // Skip Segment header
+        pos = skipEBMLHeader(data, pos);
+        if (!inBounds(pos)) return data;
 
-    // Get Info element size and content position
-    const infoHeaderEnd = skipEBMLHeader(data, infoPos);
-    const infoSize = readEBMLSize(data, infoPos + SEGMENT_INFO_ID.length);
-    const infoEnd = infoHeaderEnd + infoSize.value;
+        // Find Info element within Segment
+        const infoPos = findEBMLElement(data, SEGMENT_INFO_ID, pos);
+        if (infoPos === -1) return data;
 
-    // Check if Duration already exists in Info
-    const existingDuration = findEBMLElement(data, DURATION_ID, infoHeaderEnd, infoEnd);
+        // Get Info element size and content position
+        const infoHeaderEnd = skipEBMLHeader(data, infoPos);
+        const infoSize = readEBMLSize(data, infoPos + SEGMENT_INFO_ID.length);
+        const infoEnd = infoHeaderEnd + infoSize.value;
+        if (!inBounds(infoHeaderEnd) || !inBounds(infoEnd) || infoEnd > data.length) return data;
 
-    // Get TimecodeScale (default 1000000 = 1ms precision)
-    let timecodeScale = 1000000;
-    const tcPos = findEBMLElement(data, TIMECODE_SCALE_ID, infoHeaderEnd, infoEnd);
-    if (tcPos !== -1) {
-        const tcHeaderEnd = skipEBMLHeader(data, tcPos);
-        const tcSize = readEBMLSize(data, tcPos + TIMECODE_SCALE_ID.length);
-        timecodeScale = readUnsignedInt(data, tcHeaderEnd, tcSize.value);
-    }
-
-    // Duration in WebM format (float64, in timecode units)
-    // Duration = durationMs * 1000000 / timecodeScale (convert ms to ns, then to timecode units)
-    const durationValue = (durationMs * 1000000) / timecodeScale;
-    const durationBytes = encodeFloat64(durationValue);
-
-    if (existingDuration !== -1) {
-        // Replace existing Duration value
-        const durHeaderEnd = existingDuration + DURATION_ID.length;
-        const durSize = readEBMLSize(data, durHeaderEnd);
-        const durValuePos = durHeaderEnd + durSize.length;
-
-        // Replace the float value in place (assuming 8-byte float)
-        const result = new Uint8Array(data.length);
-        result.set(data.subarray(0, durValuePos));
-        result.set(durationBytes, durValuePos);
-        result.set(data.subarray(durValuePos + durSize.value), durValuePos + 8);
-
-        // If size changed, we need to update size bytes (complex - skip for now)
-        if (durSize.value !== 8) {
-            console.warn('Duration size mismatch, returning original');
-            return data;
+        // Get TimecodeScale (default 1000000 = 1ms precision)
+        let timecodeScale = 1000000;
+        const tcPos = findEBMLElement(data, TIMECODE_SCALE_ID, infoHeaderEnd, infoEnd);
+        if (tcPos !== -1) {
+            const tcHeaderEnd = skipEBMLHeader(data, tcPos);
+            const tcSize = readEBMLSize(data, tcPos + TIMECODE_SCALE_ID.length);
+            if (inBounds(tcHeaderEnd + tcSize.value)) {
+                timecodeScale = readUnsignedInt(data, tcHeaderEnd, tcSize.value);
+            }
         }
 
-        return result;
-    } else {
-        // Insert Duration element into Info
-        // Duration element: ID (2 bytes) + Size (1 byte for 8) + Value (8 bytes) = 11 bytes
+        // Calculate duration value (float64)
+        const durationValue = (durationMs * 1000000) / timecodeScale;
+        const durationBytes = encodeFloat64(durationValue);
+
+        // Check if Duration already exists
+        const existingDuration = findEBMLElement(data, DURATION_ID, infoHeaderEnd, infoEnd);
+        if (existingDuration !== -1) {
+            const durHeaderEnd = existingDuration + DURATION_ID.length;
+            const durSize = readEBMLSize(data, durHeaderEnd);
+            const durValuePos = durHeaderEnd + durSize.length;
+
+            // Expect 8-byte float; if not, bail out safely
+            if (durSize.value !== 8) return data;
+
+            // Bounds checks for writes
+            if (!inBounds(durValuePos + 8)) return data;
+
+            const result = new Uint8Array(data.length);
+            result.set(data.subarray(0, durValuePos), 0);
+            result.set(durationBytes, durValuePos);
+            result.set(data.subarray(durValuePos + 8), durValuePos + 8);
+            return result;
+        }
+
+        // Insert new Duration element
+        // Element: ID (2) + Size (1) + Value (8) = 11 bytes
         const durationElement = new Uint8Array(11);
-        durationElement[0] = 0x44;  // Duration ID
+        durationElement[0] = 0x44;
         durationElement[1] = 0x89;
-        durationElement[2] = 0x88;  // Size = 8 (with EBML size marker)
+        durationElement[2] = 0x88; // size = 8
         durationElement.set(durationBytes, 3);
 
-        // Create new buffer with inserted Duration
         const insertPos = infoHeaderEnd;
+        if (!inBounds(insertPos)) return data;
+
         const newData = new Uint8Array(data.length + 11);
-        newData.set(data.subarray(0, insertPos));
+        newData.set(data.subarray(0, insertPos), 0);
         newData.set(durationElement, insertPos);
         newData.set(data.subarray(insertPos), insertPos + 11);
 
-        // Update Info element size
-        const oldInfoSize = infoSize.value;
-        const newInfoSize = oldInfoSize + 11;
+        // Update Info size (keep same byte-length)
+        const newInfoSize = infoSize.value + 11;
         const newSizeBytes = encodeEBMLSize(newInfoSize, infoSize.length);
-
         const sizePos = infoPos + SEGMENT_INFO_ID.length;
-        for (let i = 0; i < infoSize.length; i++) {
-            newData[sizePos + i] = newSizeBytes[i];
+        if (inBounds(sizePos + infoSize.length)) {
+            for (let i = 0; i < infoSize.length; i++) {
+                newData[sizePos + i] = newSizeBytes[i];
+            }
         }
 
-        // Also need to update Segment size if it's not "unknown"
-        // For simplicity, we'll leave Segment size as unknown (0x01FFFFFFFFFFFFFF)
-
         return newData;
+    } catch (e) {
+        console.warn('VideoExporter: Duration patch failed, returning original blob', e);
+        return data;
     }
 }
 
