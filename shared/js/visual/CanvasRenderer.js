@@ -259,29 +259,29 @@ export class CanvasRenderer {
         // Render based on type
         switch (obj.type) {
             case 'rect':
-                this._renderRect(props, debugRender, obj.id);
+                this._renderRect(props, debug, obj.id);
                 break;
             case 'circle':
-                this._renderCircle(props, debugRender, obj.id);
+                this._renderCircle(props, debug, obj.id);
                 break;
             case 'ellipse':
-                this._renderEllipse(props, debugRender, obj.id);
+                this._renderEllipse(props, debug, obj.id);
                 break;
             case 'text':
-                this._renderText(props, debugRender, obj.id);
+                this._renderText(props, debug, obj.id);
                 break;
             case 'line':
-                this._renderLine(props, debugRender, obj.id);
+                this._renderLine(props, debug, obj.id);
                 break;
             case 'path':
-                this._renderPath(props, debugRender, obj.id);
+                this._renderPath(props, debug, obj.id);
                 break;
             case 'image':
-                this._renderImage(props, debugRender, obj.id);
+                this._renderImage(props, debug, obj.id);
                 break;
             case 'polygon':
             case 'polyline':
-                this._renderPolygon(props, obj.type, debugRender, obj.id);
+                this._renderPolygon(props, obj.type, debug, obj.id);
                 break;
             case 'group':
                 this._renderGroup(obj, { x, y, scale: totalScale, rotation: props.rotation ?? 0, opacity: ctx.globalAlpha });
