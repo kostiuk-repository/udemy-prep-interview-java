@@ -86,10 +86,13 @@ export class CanvasRenderer {
         // Clear canvas
         this.clear(options.background);
 
-        // Log coordinates ONCE per render call (not per object)
-        const shouldLog = typeof window !== 'undefined' && window.DEBUG === true;
-        if (shouldLog) {
-            console.log(`[CANVAS] Screen bounds: width=${this.width}, height=${this.height}, scale=${this.scale}`);
+        // Check debug mode AND manual log trigger
+        const debug = typeof window !== 'undefined' && window.DEBUG === true;
+        const shouldLogThisRender = typeof window !== 'undefined' && window.__logNextRender === true;
+
+        // Log coordinates ONLY when explicitly triggered via __logNextRender
+        if (shouldLogThisRender) {
+            console.log(`\n[CANVAS] Screen bounds: width=${this.width}, height=${this.height}, scale=${this.scale}`);
             console.log('[CANVAS] Objects to render:', objects.length);
             console.log('─'.repeat(80));
             
@@ -131,8 +134,8 @@ export class CanvasRenderer {
             
             console.log('─'.repeat(80));
             
-            // Auto-disable after one render to prevent spam
-            window.DEBUG_COORDS = false;
+            // Clear trigger after use
+            window.__logNextRender = false;
         }
 
         // Build object map for connection arrows
@@ -190,8 +193,9 @@ export class CanvasRenderer {
         const ctx = this.ctx;
         const props = obj.props || {};
 
-        // Debug rendering details
-        const debug = typeof window !== 'undefined' && window.DEBUG === true;
+        // Debug rendering ONLY when manually triggered
+        const debug = typeof window !== 'undefined' && window.__logNextRender === true;
+        
         if (debug && !obj.__logged_render) {
             obj.__logged_render = true;
             console.log(`\n[RENDER] ${obj.id} [${obj.type}]`);

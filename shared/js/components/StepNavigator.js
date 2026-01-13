@@ -142,9 +142,9 @@ export const StepNavigator = {
             instance.state.currentStep = newStep;
             this._updateButtons(instance);
 
-            // Enable coordinate logging for next render
-if (typeof window !== 'undefined' && window.DEBUG === true) {
-            // Debug enabled via global DEBUG flag
+            // Enable logging for next render when DEBUG is on
+            if (typeof window !== 'undefined' && window.DEBUG === true) {
+                window.__logNextRender = true;
             }
 
             // Emit event
