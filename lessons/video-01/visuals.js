@@ -975,7 +975,7 @@ export const killer3Scene = {
 };
 
 // ==========================================================================
-// SPIDER FRAMEWORK - 3D Cards Flying Forward
+// SPIDER FRAMEWORK - FIXED LAYOUT (proper spacing)
 // ==========================================================================
 
 export const spiderFrameworkScene = {
@@ -984,7 +984,7 @@ export const spiderFrameworkScene = {
     background: COLORS.bg.dark,
 
     steps: [
-        // Step 1: Title
+        // Step 1: Title Only
         {
             id: 'step1',
             duration: 600,
@@ -993,7 +993,7 @@ export const spiderFrameworkScene = {
                     id: 'main-title',
                     type: 'text',
                     props: {
-                        x: 50, y: 20,
+                        x: 50, y: 40,
                         text: 'The SPIDER Framework',
                         fontSize: 52,
                         fontWeight: 'bold',
@@ -1006,7 +1006,7 @@ export const spiderFrameworkScene = {
                     id: 'main-subtitle',
                     type: 'text',
                     props: {
-                        x: 50, y: 28,
+                        x: 50, y: 50,
                         text: 'Your System Design Secret Weapon',
                         fontSize: 28,
                         fill: COLORS.text.secondary,
@@ -1016,247 +1016,122 @@ export const spiderFrameworkScene = {
             ]
         },
 
-        // Step 2-7: Cards fly in
+        // Step 2: S - Scope (y: 20, height 9 -> occupies ~15.5-24.5%)
         {
             id: 'step2',
             duration: 500,
             objects: [
-                { id: 'main-title', props: { y: 10, fontSize: 36 } },
+                { id: 'main-title', props: { y: 8, fontSize: 36 } },
                 { id: 'main-subtitle', props: { opacity: 0 } },
-                // S - Scope
                 {
                     id: 'card-s',
                     type: 'group',
-                    props: {
-                        x: 50, y: 35,
-                        z: 10,
-                        shadow: SHADOW
-                    },
+                    props: { x: 50, y: 20, z: 10, shadow: SHADOW },
                     children: [
-                        {
-                            type: 'rect',
-                            props: {
-                                width: 70, height: 10,
-                                fill: COLORS.bg.card,
-                                stroke: COLORS.accent.emerald,
-                                strokeWidth: 2,
-                                rx: 8
-                            }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: -28, text: 'S', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.emerald }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: 5, text: 'Scope: Clarify requirements', fontSize: 24, fill: COLORS.text.primary }
-                        }
+                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.emerald, strokeWidth: 2, rx: 8 } },
+                        { type: 'text', props: { x: -28, text: 'S', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.emerald } },
+                        { type: 'text', props: { x: 5, text: 'Scope: Clarify requirements', fontSize: 22, fill: COLORS.text.primary } }
                     ]
                 }
             ]
         },
 
+        // Step 3: P - Plan (y: 32, gap of 3% from previous card)
         {
             id: 'step3',
             duration: 500,
             objects: [
-                { id: 'main-title', props: { y: 10, fontSize: 36 } },
-                { id: 'main-subtitle', props: { opacity: 0 } },
-                { id: 'card-s', props: { y: 30, z: 5, opacity: 0.8 } },
-                // P - Plan
+                { id: 'main-title', props: { y: 8, fontSize: 36 } },
+                { id: 'card-s', props: { y: 20, z: 5, opacity: 0.7 } },
                 {
                     id: 'card-p',
                     type: 'group',
-                    props: {
-                        x: 50, y: 42,
-                        z: 10,
-                        shadow: SHADOW
-                    },
+                    props: { x: 50, y: 32, z: 10, shadow: SHADOW },
                     children: [
-                        {
-                            type: 'rect',
-                            props: {
-                                width: 70, height: 10,
-                                fill: COLORS.bg.card,
-                                stroke: COLORS.accent.blue,
-                                strokeWidth: 2,
-                                rx: 8
-                            }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: -28, text: 'P', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.blue }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: 5, text: 'Plan: Structure verbally', fontSize: 24, fill: COLORS.text.primary }
-                        }
+                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.blue, strokeWidth: 2, rx: 8 } },
+                        { type: 'text', props: { x: -28, text: 'P', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.blue } },
+                        { type: 'text', props: { x: 5, text: 'Plan: Structure verbally', fontSize: 22, fill: COLORS.text.primary } }
                     ]
                 }
             ]
         },
 
+        // Step 4: I - Implement (y: 44)
         {
             id: 'step4',
             duration: 500,
             objects: [
-                { id: 'main-title', props: { y: 10, fontSize: 36 } },
-                { id: 'card-s', props: { y: 28, z: 2, opacity: 0.6 } },
-                { id: 'card-p', props: { y: 38, z: 5, opacity: 0.8 } },
-                // I - Implement
+                { id: 'main-title', props: { y: 8, fontSize: 36 } },
+                { id: 'card-s', props: { opacity: 0.5 } },
+                { id: 'card-p', props: { z: 5, opacity: 0.7 } },
                 {
                     id: 'card-i',
                     type: 'group',
-                    props: {
-                        x: 50, y: 50,
-                        z: 10,
-                        shadow: SHADOW
-                    },
+                    props: { x: 50, y: 44, z: 10, shadow: SHADOW },
                     children: [
-                        {
-                            type: 'rect',
-                            props: {
-                                width: 70, height: 10,
-                                fill: COLORS.bg.card,
-                                stroke: COLORS.accent.violet,
-                                strokeWidth: 2,
-                                rx: 8
-                            }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: -28, text: 'I', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.violet }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: 5, text: 'Implement: Production code', fontSize: 24, fill: COLORS.text.primary }
-                        }
+                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.violet, strokeWidth: 2, rx: 8 } },
+                        { type: 'text', props: { x: -28, text: 'I', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.violet } },
+                        { type: 'text', props: { x: 5, text: 'Implement: Production code', fontSize: 22, fill: COLORS.text.primary } }
                     ]
                 }
             ]
         },
 
+        // Step 5: D - Debug (y: 56)
         {
             id: 'step5',
             duration: 500,
             objects: [
-                { id: 'main-title', props: { y: 10, fontSize: 36 } },
-                { id: 'card-s', props: { y: 26, z: 0, opacity: 0.5 } },
-                { id: 'card-p', props: { y: 35, z: 2, opacity: 0.6 } },
-                { id: 'card-i', props: { y: 46, z: 5, opacity: 0.8 } },
-                // D - Debug
+                { id: 'main-title', props: { y: 8, fontSize: 36 } },
+                { id: 'card-i', props: { z: 5, opacity: 0.7 } },
                 {
                     id: 'card-d',
                     type: 'group',
-                    props: {
-                        x: 50, y: 58,
-                        z: 10,
-                        shadow: SHADOW
-                    },
+                    props: { x: 50, y: 56, z: 10, shadow: SHADOW },
                     children: [
-                        {
-                            type: 'rect',
-                            props: {
-                                width: 70, height: 10,
-                                fill: COLORS.bg.card,
-                                stroke: COLORS.accent.amber,
-                                strokeWidth: 2,
-                                rx: 8
-                            }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: -28, text: 'D', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.amber }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: 5, text: 'Debug: Trace edge cases', fontSize: 24, fill: COLORS.text.primary }
-                        }
+                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.amber, strokeWidth: 2, rx: 8 } },
+                        { type: 'text', props: { x: -28, text: 'D', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.amber } },
+                        { type: 'text', props: { x: 5, text: 'Debug: Trace edge cases', fontSize: 22, fill: COLORS.text.primary } }
                     ]
                 }
             ]
         },
 
+        // Step 6: E - Evaluate (y: 68)
         {
             id: 'step6',
             duration: 500,
             objects: [
-                { id: 'main-title', props: { y: 10, fontSize: 36 } },
-                { id: 'card-s', props: { y: 24, z: -2, opacity: 0.4 } },
-                { id: 'card-p', props: { y: 32, z: 0, opacity: 0.5 } },
-                { id: 'card-i', props: { y: 42, z: 2, opacity: 0.6 } },
-                { id: 'card-d', props: { y: 54, z: 5, opacity: 0.8 } },
-                // E - Evaluate
+                { id: 'main-title', props: { y: 8, fontSize: 36 } },
+                { id: 'card-d', props: { z: 5, opacity: 0.7 } },
                 {
                     id: 'card-e',
                     type: 'group',
-                    props: {
-                        x: 50, y: 66,
-                        z: 10,
-                        shadow: SHADOW
-                    },
+                    props: { x: 50, y: 68, z: 10, shadow: SHADOW },
                     children: [
-                        {
-                            type: 'rect',
-                            props: {
-                                width: 70, height: 10,
-                                fill: COLORS.bg.card,
-                                stroke: COLORS.accent.rose,
-                                strokeWidth: 2,
-                                rx: 8
-                            }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: -28, text: 'E', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.rose }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: 5, text: 'Evaluate: Discuss trade-offs', fontSize: 24, fill: COLORS.text.primary }
-                        }
+                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.rose, strokeWidth: 2, rx: 8 } },
+                        { type: 'text', props: { x: -28, text: 'E', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.rose } },
+                        { type: 'text', props: { x: 5, text: 'Evaluate: Trade-offs', fontSize: 22, fill: COLORS.text.primary } }
                     ]
                 }
             ]
         },
 
+        // Step 7: R - Refine (y: 80)
         {
             id: 'step7',
             duration: 500,
             objects: [
-                { id: 'main-title', props: { y: 10, fontSize: 36 } },
-                { id: 'card-s', props: { y: 22, z: -4, opacity: 0.3 } },
-                { id: 'card-p', props: { y: 30, z: -2, opacity: 0.4 } },
-                { id: 'card-i', props: { y: 40, z: 0, opacity: 0.5 } },
-                { id: 'card-d', props: { y: 52, z: 2, opacity: 0.6 } },
-                { id: 'card-e', props: { y: 64, z: 5, opacity: 0.8 } },
-                // R - Refine
+                { id: 'main-title', props: { y: 8, fontSize: 36 } },
+                { id: 'card-e', props: { z: 5, opacity: 0.7 } },
                 {
                     id: 'card-r',
                     type: 'group',
-                    props: {
-                        x: 50, y: 76,
-                        z: 10,
-                        shadow: SHADOW
-                    },
+                    props: { x: 50, y: 80, z: 10, shadow: SHADOW },
                     children: [
-                        {
-                            type: 'rect',
-                            props: {
-                                width: 70, height: 10,
-                                fill: COLORS.bg.card,
-                                stroke: COLORS.accent.cyan,
-                                strokeWidth: 2,
-                                rx: 8
-                            }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: -28, text: 'R', fontSize: 36, fontWeight: 'bold', fill: COLORS.accent.cyan }
-                        },
-                        {
-                            type: 'text',
-                            props: { x: 5, text: 'Refine: Optimize with feedback', fontSize: 24, fill: COLORS.text.primary }
-                        }
+                        { type: 'rect', props: { width: 70, height: 9, fill: COLORS.bg.card, stroke: COLORS.accent.cyan, strokeWidth: 2, rx: 8 } },
+                        { type: 'text', props: { x: -28, text: 'R', fontSize: 32, fontWeight: 'bold', fill: COLORS.accent.cyan } },
+                        { type: 'text', props: { x: 5, text: 'Refine: Optimize', fontSize: 22, fill: COLORS.text.primary } }
                     ]
                 }
             ]

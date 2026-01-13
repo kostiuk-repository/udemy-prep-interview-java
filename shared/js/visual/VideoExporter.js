@@ -24,13 +24,13 @@ export class VideoExporter {
      * @param {number} [options.width=3840] - Video width
      * @param {number} [options.height=2400] - Video height
      * @param {number} [options.fps=60] - Frames per second
-     * @param {number} [options.bitrate=25000000] - Video bitrate (25 Mbps default)
+     * @param {number} [options.bitrate=50000000] - Video bitrate (50 Mbps default for 4K)
      */
     constructor(options = {}) {
         this.width = options.width ?? 3840;
         this.height = options.height ?? 2400;
         this.fps = options.fps ?? 60;
-        this.bitrate = options.bitrate ?? 25000000;
+        this.bitrate = options.bitrate ?? 50000000;
 
         // State
         this.isRecording = false;
