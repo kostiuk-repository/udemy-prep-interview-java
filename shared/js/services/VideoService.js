@@ -234,7 +234,7 @@ export class VideoService {
         // Get all active tweens and seek them to current time
         for (const tween of sceneBuilder.tweens.values()) {
             if (tween) {
-                const duration = tween.attrs.duration * 1000; // Convert to ms
+                const duration = tween.duration * 1000; // Convert to ms
                 const progress = Math.min(time / duration, 1.0);
                 tween.seek(progress);
             }
