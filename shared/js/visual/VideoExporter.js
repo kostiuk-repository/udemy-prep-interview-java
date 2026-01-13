@@ -164,14 +164,17 @@ export class VideoExporter {
                 const currentStep = engine.currentStepIndex;
                 if (currentStep !== lastLoggedStep) {
                     console.log(`[VIDEO] Step transition: frame ${frame} -> step ${currentStep}`);
-                    console.log(`[VIDEO] Current state objects:`, state.size, 'ids:', Array.from(state.keys()));
+                    console.log(`[VIDEO] Current state objects:`, state.length, 'ids:', state.map(o => o.id));
+                    if (typeof window !== 'undefined' && window.DEBUG_RENDER === true) {
+                        console.log(`[VIDEO] Objects detail:`, state.map(o => ({ id: o.id, type: o.type, x: o.props?.x, y: o.props?.y })));
+                    }
                     lastLoggedStep = currentStep;
                 }
 
                 // Log every frame if DEBUG_RENDER, otherwise every 30 frames
                 const debugEnabled = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
                 if (debugEnabled || frame % 30 === 0) {
-                    console.log(`[VIDEO FRAME]`, frame, `/ ${animationFrames}, step:`, currentStep, `state objects:`, state.size);
+                    console.log(`[VIDEO FRAME]`, frame, `/ ${animationFrames}, step:`, currentStep, `state objects:`, state.length);
                 }
 
                 // Render to canvas

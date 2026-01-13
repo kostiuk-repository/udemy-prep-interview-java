@@ -86,6 +86,12 @@ export class CanvasRenderer {
         // Clear canvas
         this.clear(options.background);
 
+        // Debug: log canvas boundaries once per render
+        const debugEnabled = typeof window !== 'undefined' && window.DEBUG_RENDER === true;
+        if (debugEnabled) {
+            console.log(`[CANVAS] Screen bounds: width=${this.width}, height=${this.height}, scale=${this.scale}`);
+        }
+
         // Build object map for connection arrows
         this.objectMap.clear();
         this._buildObjectMap(objects);
@@ -243,15 +249,30 @@ export class CanvasRenderer {
 
                 const finalW = baseW * totalScale;
                 const finalH = baseH * totalScale;
+
+                // Calculate corner coordinates (center-based object)
+                const left = x - finalW / 2;
+                const right = x + finalW / 2;
+                const top = y - finalH / 2;
+                const bottom = y + finalH / 2;
+
                 console.log(
-                    '[Render Debug] ID:', obj.id,
-                    'Type:', obj.type,
-                    'X:', Number(x.toFixed(2)),
-                    'Y:', Number(y.toFixed(2)),
-                    'W:', Number(finalW.toFixed(2)),
-                    'H:', Number(finalH.toFixed(2)),
-                    'Scale:', Number(totalScale.toFixed(3))
+                    '[Render Coords]',
+                    'ID:', obj.id,
+                    '| Type:', obj.type,
+                    '| Pos: (' + Number(x.toFixed(0)) + ',' + Number(y.toFixed(0)) + ')',
+                    '| Size: ' + Number(finalW.toFixed(0)) + 'x' + Number(finalH.toFixed(0)),
+                    '| Bounds: TL(' + Number(left.toFixed(0)) + ',' + Number(top.toFixed(0)) + ')',
+                    'BR(' + Number(right.toFixed(0)) + ',' + Number(bottom.toFixed(0)) + ')',
+                    '| Scale:' + Number(totalScale.toFixed(2)),
+                    '| Z:' + z,
+                    '| Opacity:' + ctx.globalAlpha.toFixed(2)
                 );
+
+                // Check if object is off-screen or clipped
+                if (right < 0 || left > this.width || bottom < 0 || top > this.height) {
+                    console.warn('[OFF SCREEN]', obj.id, 'is outside canvas bounds!');
+                }
             }
         } catch (e) {
             console.warn('CanvasRenderer debug logging failed:', e);
