@@ -12,8 +12,8 @@
 import { EventBus, Events } from '../core/EventBus.js';
 import { StepNavigator } from './StepNavigator.js';
 import { StateBasedEngine } from '../visual/VisualEngine.js';
-import { CanvasRenderer } from '../visual/CanvasRenderer.js';
-import { VideoExporter, downloadVideo, createProgressUI } from '../visual/VideoExporter.js';
+import { KonvaRenderer } from '../visual/KonvaRenderer.js';
+import { VideoExporterV2 } from '../visual/VideoExporterV2.js';
 
 /**
  * VisualBlock manager - handles multiple visual blocks
@@ -138,10 +138,11 @@ export const VisualBlock = {
     _initEngine(instance) {
         const canvas = instance.elements.canvas;
 
-        // Create renderer with preview resolution
-        instance.renderer = new CanvasRenderer(canvas, {
+        // Create renderer with preview resolution using Konva
+        instance.renderer = new KonvaRenderer(canvas, {
             scale: RESOLUTION.PREVIEW,
-            depthOfField: true
+            width: 3840,
+            height: 2400
         });
 
         // Create engine
@@ -330,21 +331,31 @@ export const VisualBlock = {
         try {
             // Create temporary 4K canvas
             const exportCanvas = document.createElement('canvas');
-            const exportRenderer = new CanvasRenderer(exportCanvas, { scale: RESOLUTION.EXPORT });
+            const exportRenderer = new KonvaRenderer(exportCanvas, {
+                scale: RESOLUTION.EXPORT,
+                width: 3840,
+                height: 2400
+            });
             exportRenderer.setEngine(instance.engine);
 
             // Render current state at full resolution
             const objects = instance.engine.getCurrentState();
-            exportRenderer.render(objects, { background: instance.scene?.background });
+            exportRenderer.render(objects, instance.scene?.background);
 
+            // Get canvas and convert to blob
+            const canvas = exportRenderer.getCanvas();
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            
             // Download as PNG
-            const blob = await exportRenderer.toPNG();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `${visualId}-step-${instance.state.currentStep}.png`;
             a.click();
             URL.revokeObjectURL(url);
+            
+            // Clean up
+            exportRenderer.destroy();
 
             EventBus.emit(Events.VISUAL_EXPORT_COMPLETE, { format: 'png', files: 1 });
         } catch (error) {
@@ -371,41 +382,59 @@ export const VisualBlock = {
         instance.state.isExporting = true;
         EventBus.emit(Events.VISUAL_EXPORT_STARTED, { format: 'video', count: 1 });
 
-        // Create progress UI
-        const progressUI = createProgressUI(document.body);
+        // Create simple progress UI
+        const progressDiv = document.createElement('div');
+        progressDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            z-index: 10000;
+            text-align: center;
+            min-width: 300px;
+        `;
+        progressDiv.innerHTML = `
+            <h3 style="margin-top: 0;">Exporting Video...</h3>
+            <div id="progress-text">Preparing...</div>
+            <progress id="progress-bar" style="width: 100%; margin-top: 1rem;" value="0" max="100"></progress>
+        `;
+        document.body.appendChild(progressDiv);
+
+        const progressText = progressDiv.querySelector('#progress-text');
+        const progressBar = progressDiv.querySelector('#progress-bar');
 
         try {
-            const exporter = new VideoExporter({
+            const exporter = new VideoExporterV2({
                 width: 3840,
                 height: 2400,
                 fps: 60
             });
 
-            // Set up cancel handler
-            progressUI.onCancel(() => {
-                exporter.cancel();
-                instance.state.isExporting = false;
-                progressUI.hide();
-            });
-
             // Export video with progress
             const blob = await exporter.renderVideo(instance.scene, {
                 onProgress: (current, total) => {
-                    progressUI.update(current, total);
+                    const percent = Math.round((current / total) * 100);
+                    progressText.textContent = `Frame ${current} / ${total} (${percent}%)`;
+                    progressBar.value = percent;
                 },
-                holdFrames: 30 // Hold each step for 0.5 seconds at 60fps
+                holdFrames: 30 // Hold final step for 0.5 seconds at 60fps
             });
 
             // Download video
-            downloadVideo(blob, `${visualId}-animation.webm`);
+            exporter.downloadVideo(blob, `${visualId}-animation.webm`);
 
             EventBus.emit(Events.VISUAL_EXPORT_COMPLETE, { format: 'video', files: 1 });
 
         } catch (error) {
             console.error('Video export failed:', error);
+            alert(`Video export failed: ${error.message}`);
         } finally {
             instance.state.isExporting = false;
-            progressUI.hide();
+            document.body.removeChild(progressDiv);
         }
     },
 

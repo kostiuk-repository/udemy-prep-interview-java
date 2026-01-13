@@ -165,6 +165,19 @@
         <div id="section-cta"></div>
     </div>
 
+    <!-- External Libraries -->
+    <!-- Konva.js - Professional Canvas Library -->
+    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    
+    <!-- webm-muxer - WebM Container Creation -->
+    <script type="module">
+        // Import webm-muxer from CDN
+        import { Muxer, ArrayBufferTarget } from 'https://unpkg.com/webm-muxer@4.0.0/build/webm-muxer.js';
+        
+        // Make available globally
+        window.WebmMuxer = { Muxer, ArrayBufferTarget };
+    </script>
+
     <!-- Initialize Lesson -->
     <script type="module">
         import { LessonCore } from '../../shared/js/core/LessonCore.js';
